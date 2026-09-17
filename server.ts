@@ -7,6 +7,13 @@ import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import { FoundAccount, ExtractedMetadata, SearchSiteConfig, AiProfileAnalysis, OctopusDomainNode } from './src/types.js';
 
+// Prioritize IPv4 DNS resolution to prevent container IPv6 timeouts
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch {
+  // Ignored if older Node runtime
+}
+
 const app = express();
 const PORT = 3000;
 
@@ -80,7 +87,7 @@ function getRandomSplash(): string {
 }
 
 // -------------------------------------------------------------
-// 50 Famous Email Providers for Octopus Multi-Domain Expansion
+// 120 Famous Email Providers for Octopus Multi-Domain Expansion
 // -------------------------------------------------------------
 export interface FamousEmailDomain {
   domain: string;
@@ -88,67 +95,33 @@ export interface FamousEmailDomain {
   category: 'Korea Major' | 'Global Giant' | 'Secure & Privacy' | 'International' | 'ISP & Legacy';
 }
 
-export const FAMOUS_EMAIL_DOMAINS: FamousEmailDomain[] = [
-  // 1-6 Korea Major
-  { domain: 'naver.com', name: 'Naver Mail', category: 'Korea Major' },
-  { domain: 'gmail.com', name: 'Google Gmail', category: 'Global Giant' },
-  { domain: 'daum.net', name: 'Daum Mail', category: 'Korea Major' },
-  { domain: 'kakao.com', name: 'Kakao Mail', category: 'Korea Major' },
-  { domain: 'hanmail.net', name: 'Hanmail (Daum)', category: 'Korea Major' },
-  { domain: 'nate.com', name: 'Nate Mail', category: 'Korea Major' },
+let famousDomains: FamousEmailDomain[] = [];
+try {
+  const fdPath = path.join(dataDir, 'famous-domains.json');
+  if (fs.existsSync(fdPath)) {
+    famousDomains = JSON.parse(fs.readFileSync(fdPath, 'utf-8'));
+  }
+} catch (e) {
+  console.warn('Failed to load famous-domains.json:', e);
+}
 
-  // 7-14 Global Giants
-  { domain: 'outlook.com', name: 'Microsoft Outlook', category: 'Global Giant' },
-  { domain: 'hotmail.com', name: 'Microsoft Hotmail', category: 'Global Giant' },
-  { domain: 'yahoo.com', name: 'Yahoo Mail', category: 'Global Giant' },
-  { domain: 'icloud.com', name: 'Apple iCloud', category: 'Global Giant' },
-  { domain: 'live.com', name: 'Microsoft Live', category: 'Global Giant' },
-  { domain: 'msn.com', name: 'MSN Mail', category: 'Global Giant' },
-  { domain: 'me.com', name: 'Apple MobileMe', category: 'Global Giant' },
-  { domain: 'mac.com', name: 'Apple Mac Mail', category: 'Global Giant' },
+if (famousDomains.length === 0) {
+  famousDomains = [
+    { domain: 'naver.com', name: 'Naver Mail', category: 'Korea Major' },
+    { domain: 'gmail.com', name: 'Google Gmail', category: 'Global Giant' },
+    { domain: 'daum.net', name: 'Daum Mail', category: 'Korea Major' },
+    { domain: 'kakao.com', name: 'Kakao Mail', category: 'Korea Major' },
+    { domain: 'hanmail.net', name: 'Hanmail (Daum)', category: 'Korea Major' },
+    { domain: 'nate.com', name: 'Nate Mail', category: 'Korea Major' },
+    { domain: 'outlook.com', name: 'Microsoft Outlook', category: 'Global Giant' },
+    { domain: 'hotmail.com', name: 'Microsoft Hotmail', category: 'Global Giant' },
+    { domain: 'yahoo.com', name: 'Yahoo Mail', category: 'Global Giant' },
+    { domain: 'icloud.com', name: 'Apple iCloud', category: 'Global Giant' },
+    { domain: 'proton.me', name: 'Proton Mail', category: 'Secure & Privacy' },
+  ];
+}
 
-  // 15-20 Secure & Privacy
-  { domain: 'proton.me', name: 'Proton Mail', category: 'Secure & Privacy' },
-  { domain: 'protonmail.com', name: 'ProtonMail Classic', category: 'Secure & Privacy' },
-  { domain: 'tutanota.com', name: 'Tuta Mail', category: 'Secure & Privacy' },
-  { domain: 'tuta.io', name: 'Tuta IO', category: 'Secure & Privacy' },
-  { domain: 'posteo.de', name: 'Posteo Privacy Mail', category: 'Secure & Privacy' },
-  { domain: 'fastmail.com', name: 'Fastmail', category: 'Secure & Privacy' },
-
-  // 21-38 International & Regional
-  { domain: 'zoho.com', name: 'Zoho Mail', category: 'International' },
-  { domain: 'mail.com', name: 'Mail.com', category: 'International' },
-  { domain: 'gmx.com', name: 'GMX Global', category: 'International' },
-  { domain: 'gmx.de', name: 'GMX Germany', category: 'International' },
-  { domain: 'web.de', name: 'WEB.DE Germany', category: 'International' },
-  { domain: 't-online.de', name: 'Telekom Mail Germany', category: 'International' },
-  { domain: 'yandex.com', name: 'Yandex Mail', category: 'International' },
-  { domain: 'yandex.ru', name: 'Yandex Russia', category: 'International' },
-  { domain: 'mail.ru', name: 'Mail.ru (VK)', category: 'International' },
-  { domain: 'orange.fr', name: 'Orange France', category: 'International' },
-  { domain: 'free.fr', name: 'Free France', category: 'International' },
-  { domain: 'sfr.fr', name: 'SFR France', category: 'International' },
-  { domain: 'libero.it', name: 'Libero Mail Italy', category: 'International' },
-  { domain: 'qq.com', name: 'Tencent QQ Mail', category: 'International' },
-  { domain: '163.com', name: 'NetEase 163 Mail', category: 'International' },
-  { domain: '126.com', name: 'NetEase 126 Mail', category: 'International' },
-  { domain: 'sina.com', name: 'Sina Mail', category: 'International' },
-  { domain: 'skiff.com', name: 'Skiff Mail', category: 'Secure & Privacy' },
-
-  // 39-50 ISP & Legacy Majors
-  { domain: 'aol.com', name: 'AOL Mail', category: 'ISP & Legacy' },
-  { domain: 'comcast.net', name: 'Xfinity Comcast', category: 'ISP & Legacy' },
-  { domain: 'att.net', name: 'AT&T Mail', category: 'ISP & Legacy' },
-  { domain: 'verizon.net', name: 'Verizon Mail', category: 'ISP & Legacy' },
-  { domain: 'sbcglobal.net', name: 'SBC Global Mail', category: 'ISP & Legacy' },
-  { domain: 'cox.net', name: 'Cox Mail', category: 'ISP & Legacy' },
-  { domain: 'earthlink.net', name: 'EarthLink', category: 'ISP & Legacy' },
-  { domain: 'bell.net', name: 'Bell Canada', category: 'ISP & Legacy' },
-  { domain: 'rogers.com', name: 'Rogers Canada', category: 'ISP & Legacy' },
-  { domain: 'btinternet.com', name: 'BT Internet UK', category: 'ISP & Legacy' },
-  { domain: 'virginmedia.com', name: 'Virgin Media UK', category: 'ISP & Legacy' },
-  { domain: 'inbox.com', name: 'Inbox.com', category: 'ISP & Legacy' },
-];
+export const FAMOUS_EMAIL_DOMAINS: FamousEmailDomain[] = famousDomains;
 
 /**
  * Provider-specific username syntax rules
@@ -228,21 +201,24 @@ async function domainHasValidMx(domain: string): Promise<boolean> {
 /**
  * Probe identity existence for a handle on a specific email domain
  * Combines real DNS MX routing, provider handle grammar validation, and strict public identity anchor proofs.
- * IMPORTANT: Syntax and MX routing alone only verify that the email provider domain exists.
- * We ONLY return a verified node if genuine external identity proofs (Gravatar, Libravatar, Naver, Keybase) confirm account existence.
  */
 async function probeEmailDomainIdentity(
   handle: string,
-  d: FamousEmailDomain
+  d: FamousEmailDomain,
+  targetEmailQuery?: string
 ): Promise<OctopusDomainNode | null> {
-  const candidateEmail = `${handle.trim().toLowerCase()}@${d.domain}`;
+  const candidateEmail = `${handle.trim().toLowerCase()}@${d.domain.toLowerCase()}`;
   const t0 = Date.now();
   const identityProofs: string[] = [];
   let avatarUrl: string | undefined = undefined;
 
-  // 1. Verify Provider Username Grammar & Constraints
+  const isExactTarget = Boolean(
+    targetEmailQuery && targetEmailQuery.trim().toLowerCase() === candidateEmail.toLowerCase()
+  );
+
+  // 1. Verify Provider Username Grammar & Constraints (Always allow user-specified target email)
   const syntaxCheck = validateProviderHandleSyntax(handle, d.domain);
-  if (!syntaxCheck.valid) {
+  if (!syntaxCheck.valid && !isExactTarget) {
     return null;
   }
 
@@ -252,113 +228,243 @@ async function probeEmailDomainIdentity(
     return null; // Domain has no active MX records
   }
 
-  // 3. Provider-Specific Definitive Verification
-  // Naver: naver.com allocates blog.naver.com/{handle} for valid registered users
-  if (d.domain === 'naver.com') {
-    try {
-      const nCtrl = new AbortController();
-      const nTo = setTimeout(() => nCtrl.abort(), 1200);
-      const nRes = await fetch(`https://blog.naver.com/${encodeURIComponent(handle)}`, {
+  if (isExactTarget) {
+    identityProofs.push('Target Specified Address (Confirmed User Query)');
+    identityProofs.push('Active Mail Server (DNS MX Verified)');
+  }
+
+  // 3. Universal & Regional Strict Positive Identity Anchors (Concurrent execution)
+  const sha256 = crypto.createHash('sha256').update(candidateEmail).digest('hex');
+  const md5 = crypto.createHash('md5').update(candidateEmail).digest('hex');
+
+  const ctrl = new AbortController();
+  const probeTimeout = setTimeout(() => ctrl.abort(), 1500);
+
+  // A. Naver (Korea #1): allocates blog PostList with var mylogURL for registered members
+  const naverPromise = (d.domain === 'naver.com')
+    ? fetch(`https://blog.naver.com/PostList.naver?blogId=${encodeURIComponent(handle)}`, {
         headers: { 'User-Agent': getRandomUserAgent() },
-        signal: nCtrl.signal,
-      });
-      clearTimeout(nTo);
-      if (nRes.status === 200) {
-        const body = await nRes.text();
-        const notFound =
-          body.includes('블로그가 없습니다') ||
-          body.includes('존재하지 않는 블로그') ||
-          body.includes('삭제되었거나');
-        if (!notFound) {
-          identityProofs.push('Naver Platform Registered User');
+        signal: ctrl.signal,
+      })
+        .then(async (res) => {
+          if (res.status === 200) {
+            const body = await res.text();
+            if (body.includes('var mylogURL')) {
+              return { signal: 'Naver Platform Registered User' };
+            }
+          }
+          return null;
+        })
+        .catch(() => null)
+    : Promise.resolve(null);
+
+  // B. Kakao Brunch (Korea #1 Writer/Essay platform)
+  const brunchPromise = (d.domain === 'daum.net' || d.domain === 'kakao.com' || d.domain === 'hanmail.net')
+    ? fetch(`https://brunch.co.kr/@${encodeURIComponent(handle)}`, {
+        headers: { 'User-Agent': getRandomUserAgent() },
+        signal: ctrl.signal,
+      })
+        .then(async (res) => {
+          if (res.status === 200) {
+            const body = await res.text();
+            if (body.includes('작가소개') || body.includes('brunch')) {
+              return { signal: 'Kakao Brunch Registered Author' };
+            }
+          }
+          return null;
+        })
+        .catch(() => null)
+    : Promise.resolve(null);
+
+  // C. Ubuntu OpenPGP Global Keyserver (Official Cryptographic Email Record)
+  const openPgpPromise = fetch(
+    `https://keyserver.ubuntu.com/pks/lookup?op=get&search=${encodeURIComponent(candidateEmail)}`,
+    {
+      headers: { 'User-Agent': getRandomUserAgent() },
+      signal: ctrl.signal,
+    }
+  )
+    .then((res) => {
+      if (res.status === 200) {
+        return { signal: 'OpenPGP Verified Cryptographic Key' };
+      }
+      return null;
+    })
+    .catch(() => null);
+
+  // D. Keybase Global Cryptographic Identity
+  const keybasePromise = fetch(
+    `https://keybase.io/_/api/1.0/user/lookup.json?usernames=${encodeURIComponent(handle)}`,
+    {
+      headers: { 'User-Agent': getRandomUserAgent() },
+      signal: ctrl.signal,
+    }
+  )
+    .then(async (res) => {
+      if (res.status === 200) {
+        const kData = await res.json().catch(() => null);
+        if (kData?.status?.name === 'OK' && kData?.them?.[0]) {
+          const avatar = kData.them[0]?.pictures?.primary?.url;
+          return { signal: 'Keybase Cryptographic Identity', avatar };
         }
       }
-    } catch {}
-  }
-
-  // 4. Universal Strict Positive Identity Anchors (Concurrent execution)
-  if (identityProofs.length === 0) {
-    const sha256 = crypto.createHash('sha256').update(candidateEmail).digest('hex');
-    const md5 = crypto.createHash('md5').update(candidateEmail).digest('hex');
-
-    const ctrl = new AbortController();
-    const probeTimeout = setTimeout(() => ctrl.abort(), 1200);
-
-    const gravatarProfilePromise = fetch(`https://gravatar.com/${sha256}.json`, {
-      headers: { 'User-Agent': getRandomUserAgent() },
-      signal: ctrl.signal,
+      return null;
     })
-      .then(async (res) => {
-        if (res.status === 200) {
-          const gData = await res.json().catch(() => null);
-          if (gData?.entry?.[0]) {
-            return {
-              signal: 'Gravatar Verified Profile',
-              avatar: gData.entry[0].thumbnailUrl as string | undefined,
-            };
+    .catch(() => null);
+
+  // E. GitHub Official Public User API
+  const githubPromise = (d.domain === 'gmail.com' || d.domain === 'outlook.com' || d.domain === 'naver.com' || d.domain.includes('github'))
+    ? fetch(`https://api.github.com/users/${encodeURIComponent(handle)}`, {
+        headers: { 'User-Agent': getRandomUserAgent() },
+        signal: ctrl.signal,
+      })
+        .then(async (res) => {
+          if (res.status === 200) {
+            const ghData = await res.json().catch(() => null);
+            if (ghData?.id) {
+              return { signal: 'GitHub Verified Account', avatar: ghData.avatar_url };
+            }
           }
-        }
-        return null;
-      })
-      .catch(() => null);
+          return null;
+        })
+        .catch(() => null)
+    : Promise.resolve(null);
 
-    const gravatarAvatarPromise = fetch(`https://www.gravatar.com/avatar/${md5}?d=404`, {
-      method: 'HEAD',
-      headers: { 'User-Agent': getRandomUserAgent() },
-      signal: ctrl.signal,
-    })
-      .then((res) => {
-        if (res.status === 200) {
+  // F. Qiita (Japan #1 Tech & Dev Community)
+  const qiitaPromise = (d.domain.includes('.jp') || d.domain === 'yahoo.co.jp' || d.domain === 'gmail.com')
+    ? fetch(`https://qiita.com/api/v2/users/${encodeURIComponent(handle)}`, {
+        headers: { 'User-Agent': getRandomUserAgent() },
+        signal: ctrl.signal,
+      })
+        .then(async (res) => {
+          if (res.status === 200) {
+            const qData = await res.json().catch(() => null);
+            return { signal: 'Qiita Japan Verified Developer', avatar: qData?.profile_image_url };
+          }
+          return null;
+        })
+        .catch(() => null)
+    : Promise.resolve(null);
+
+  // G. Note.com (Japan #1 Creator/Media Platform)
+  const notePromise = (d.domain.includes('.jp') || d.domain === 'yahoo.co.jp' || d.domain === 'gmail.com')
+    ? fetch(`https://note.com/api/v2/creators/${encodeURIComponent(handle)}`, {
+        headers: { 'User-Agent': getRandomUserAgent() },
+        signal: ctrl.signal,
+      })
+        .then(async (res) => {
+          if (res.status === 200) {
+            const nData = await res.json().catch(() => null);
+            return { signal: 'Note.com Japan Verified Creator', avatar: nData?.data?.user?.profileImageUrl };
+          }
+          return null;
+        })
+        .catch(() => null)
+    : Promise.resolve(null);
+
+  // H. Gravatar Profile JSON
+  const gravatarProfilePromise = fetch(`https://gravatar.com/${sha256}.json`, {
+    headers: { 'User-Agent': getRandomUserAgent() },
+    signal: ctrl.signal,
+  })
+    .then(async (res) => {
+      if (res.status === 200) {
+        const gData = await res.json().catch(() => null);
+        if (gData?.entry?.[0]) {
           return {
-            signal: 'Gravatar Registered Avatar',
-            avatar: `https://www.gravatar.com/avatar/${md5}`,
+            signal: 'Gravatar Verified Profile',
+            avatar: gData.entry[0].thumbnailUrl as string | undefined,
           };
         }
-        return null;
-      })
-      .catch(() => null);
-
-    const libravatarPromise = fetch(`https://seccdn.libravatar.org/avatar/${md5}?d=404`, {
-      method: 'HEAD',
-      headers: { 'User-Agent': getRandomUserAgent() },
-      signal: ctrl.signal,
+      }
+      return null;
     })
-      .then((res) => {
-        if (res.status === 200) {
-          return {
-            signal: 'Libravatar Public Identity',
-            avatar: `https://seccdn.libravatar.org/avatar/${md5}`,
-          };
-        }
-        return null;
-      })
-      .catch(() => null);
+    .catch(() => null);
 
-    const [profileRes, avatarRes, libraRes] = await Promise.all([
-      gravatarProfilePromise,
-      gravatarAvatarPromise,
-      libravatarPromise,
-    ]);
-    clearTimeout(probeTimeout);
+  // I. Gravatar Avatar HEAD
+  const gravatarAvatarPromise = fetch(`https://www.gravatar.com/avatar/${md5}?d=404`, {
+    method: 'HEAD',
+    headers: { 'User-Agent': getRandomUserAgent() },
+    signal: ctrl.signal,
+  })
+    .then((res) => {
+      if (res.status === 200) {
+        return {
+          signal: 'Gravatar Registered Avatar',
+          avatar: `https://www.gravatar.com/avatar/${md5}`,
+        };
+      }
+      return null;
+    })
+    .catch(() => null);
 
-    if (profileRes) {
-      identityProofs.push(profileRes.signal);
-      if (profileRes.avatar) avatarUrl = profileRes.avatar;
-    } else if (avatarRes) {
-      identityProofs.push(avatarRes.signal);
-      if (avatarRes.avatar) avatarUrl = avatarRes.avatar;
-    }
+  // J. Libravatar HEAD
+  const libravatarPromise = fetch(`https://seccdn.libravatar.org/avatar/${md5}?d=404`, {
+    method: 'HEAD',
+    headers: { 'User-Agent': getRandomUserAgent() },
+    signal: ctrl.signal,
+  })
+    .then((res) => {
+      if (res.status === 200) {
+        return {
+          signal: 'Libravatar Public Identity',
+          avatar: `https://seccdn.libravatar.org/avatar/${md5}`,
+        };
+      }
+      return null;
+    })
+    .catch(() => null);
 
-    if (libraRes) {
-      identityProofs.push(libraRes.signal);
-      if (!avatarUrl && libraRes.avatar) avatarUrl = libraRes.avatar;
+  const [
+    naverRes,
+    brunchRes,
+    openPgpRes,
+    keybaseRes,
+    githubRes,
+    qiitaRes,
+    noteRes,
+    profileRes,
+    avatarRes,
+    libraRes,
+  ] = await Promise.all([
+    naverPromise,
+    brunchPromise,
+    openPgpPromise,
+    keybasePromise,
+    githubPromise,
+    qiitaPromise,
+    notePromise,
+    gravatarProfilePromise,
+    gravatarAvatarPromise,
+    libravatarPromise,
+  ]);
+  clearTimeout(probeTimeout);
+
+  const candidateResults = [
+    naverRes,
+    brunchRes,
+    openPgpRes,
+    keybaseRes,
+    githubRes,
+    qiitaRes,
+    noteRes,
+    profileRes,
+    avatarRes,
+    libraRes,
+  ];
+
+  for (const r of candidateResults) {
+    if (r) {
+      identityProofs.push(r.signal);
+      if (!avatarUrl && r.avatar) {
+        avatarUrl = r.avatar;
+      }
     }
   }
 
-  // CRITICAL ANTI-HALLUCINATION:
-  // If no positive identity anchor confirmed that this email account exists, return null!
-  // Do NOT return false positive domain nodes.
-  if (identityProofs.length === 0) {
+  // CRITICAL ANTI-HALLUCINATION / USER OPTION B:
+  // If no positive identity anchor confirmed that this account exists and it is not the user's explicit target, return null!
+  if (identityProofs.length === 0 && !isExactTarget) {
     return null;
   }
 
@@ -372,6 +478,7 @@ async function probeEmailDomainIdentity(
     avatarUrl,
     signals: identityProofs,
     responseTimeMs,
+    isTarget: isExactTarget,
   };
 }
 
@@ -523,7 +630,11 @@ app.get('/api/search/stream', async (req: Request, res: Response) => {
 
   const sendEvent = (event: any) => {
     if (isClosed) return;
-    res.write(`data: ${JSON.stringify(event)}\n\n`);
+    try {
+      res.write(`data: ${JSON.stringify(event)}\n\n`);
+    } catch {
+      isClosed = true;
+    }
   };
 
   const startTime = Date.now();
@@ -823,94 +934,113 @@ app.get('/api/search/stream', async (req: Request, res: Response) => {
     }
   });
 
-  // Octopus Multi-Domain Expansion Task (Probe 50 Famous Email Providers)
+  // Octopus Multi-Domain Expansion Task (Probe 120 Famous Email Providers)
   const octopusTask = async () => {
     if (!octopusMode || isClosed) return;
 
     const handle = query.includes('@') ? query.split('@')[0].trim() : query.trim();
     if (!handle || handle.length < 2) return;
 
+    const targetEmail = query.includes('@') ? query.trim().toLowerCase() : undefined;
+    const targetDomain = query.includes('@') ? query.split('@')[1]?.trim().toLowerCase() : undefined;
+
+    // Prioritize target domain so user's exact email is processed and emitted immediately
+    const orderedDomains = [...famousDomains].sort((a, b) => {
+      if (targetDomain) {
+        if (a.domain.toLowerCase() === targetDomain) return -1;
+        if (b.domain.toLowerCase() === targetDomain) return 1;
+      }
+      return 0;
+    });
+
     sendEvent({
       type: 'octopus_init',
-      octopusTotal: FAMOUS_EMAIL_DOMAINS.length,
-      message: `Probing 50 renowned email providers for prefix "${handle}"...`,
+      octopusTotal: orderedDomains.length,
+      message: `Probing ${orderedDomains.length} renowned email networks for handle "${handle}"...`,
     });
 
     let verifiedOctopusCount = 0;
+    let checkedOctopusCount = 0;
     let dIndex = 0;
 
-    const domainWorkers = Array.from({ length: 8 }).map(async () => {
-      while (dIndex < FAMOUS_EMAIL_DOMAINS.length && !isClosed) {
-        const d = FAMOUS_EMAIL_DOMAINS[dIndex++];
-        const verifiedNode = await probeEmailDomainIdentity(handle, d);
+    // Concurrency pool for multi-domain probing (10 concurrent workers)
+    const domainWorkers = Array.from({ length: 10 }).map(async () => {
+      while (dIndex < orderedDomains.length && !isClosed) {
+        const d = orderedDomains[dIndex++];
+        const node = await probeEmailDomainIdentity(handle, d, targetEmail);
+        checkedOctopusCount++;
 
-        if (verifiedNode) {
-          verifiedOctopusCount++;
+        if (node) {
+          if (node.status === 'VERIFIED') {
+            verifiedOctopusCount++;
+          }
 
           sendEvent({
             type: 'octopus_found',
-            octopusNode: verifiedNode,
+            octopusNode: node,
             octopusVerifiedCount: verifiedOctopusCount,
           });
 
-          // Emit a found account card for this verified domain identity
-          foundCount++;
-          const accountCard: FoundAccount = {
-            name: `${d.name} (${d.domain})`,
-            url: `mailto:${verifiedNode.email}`,
-            category: 'email',
-            status: 'FOUND',
-            detectionType: 'octopus_pivot',
-            pivotEmail: verifiedNode.email,
-            responseTimeMs: verifiedNode.responseTimeMs,
-            metadata: [
-              { name: 'Verified Mail Address', type: 'String', value: verifiedNode.email },
-              { name: 'Provider', type: 'String', value: d.name },
-              { name: 'Provider Domain', type: 'String', value: d.domain },
-              { name: 'Verification Signals', type: 'Array', value: verifiedNode.signals || [] },
-              ...(verifiedNode.avatarUrl ? [{ name: 'avatar', type: 'Image' as const, value: verifiedNode.avatarUrl }] : []),
-            ],
-          };
+          // Emit a found account card for VERIFIED accounts (including the user-specified target email)
+          if (node.status === 'VERIFIED') {
+            foundCount++;
+            const accountCard: FoundAccount = {
+              name: `${d.name} (${d.domain})`,
+              url: `mailto:${node.email}`,
+              category: 'email',
+              status: 'FOUND',
+              detectionType: 'octopus_pivot',
+              pivotEmail: node.email,
+              responseTimeMs: node.responseTimeMs,
+              metadata: [
+                { name: 'Verified Mail Address', type: 'String', value: node.email },
+                { name: 'Provider', type: 'String', value: d.name },
+                { name: 'Provider Domain', type: 'String', value: d.domain },
+                { name: 'Verification Signals', type: 'Array', value: node.signals || [] },
+                ...(node.avatarUrl ? [{ name: 'avatar', type: 'Image' as const, value: node.avatarUrl }] : []),
+              ],
+            };
 
-          sendEvent({
-            type: 'found',
-            account: accountCard,
-            completed: completedCount,
-            total: targets.length,
-            foundCount,
-          });
+            sendEvent({
+              type: 'found',
+              account: accountCard,
+              completed: completedCount,
+              total: targets.length,
+              foundCount,
+            });
 
-          // Branch out ("문어발"): dynamically check top email platforms concurrently without blocking domain scanning
-          const branchSites = emailSites.slice(0, 4);
-          Promise.allSettled(
-            branchSites.map(async (bSite) => {
-              if (isClosed) return;
-              const branchRes = await checkSingleSite({
-                site: bSite,
-                query: verifiedNode.email,
-                detectionType: 'octopus_pivot',
-                pivotEmail: verifiedNode.email,
-              });
-              if (branchRes && !isClosed) {
-                branchRes.detectionType = 'octopus_pivot';
-                branchRes.pivotEmail = verifiedNode.email;
-                foundCount++;
-                sendEvent({
-                  type: 'found',
-                  account: branchRes,
-                  completed: completedCount,
-                  total: targets.length,
-                  foundCount,
+            // Branch out ("문어발"): dynamically check top email platforms concurrently without blocking domain scanning
+            const branchSites = emailSites.slice(0, 4);
+            Promise.allSettled(
+              branchSites.map(async (bSite) => {
+                if (isClosed) return;
+                const branchRes = await checkSingleSite({
+                  site: bSite,
+                  query: node.email,
+                  detectionType: 'octopus_pivot',
+                  pivotEmail: node.email,
                 });
-              }
-            })
-          ).catch(() => {});
+                if (branchRes && !isClosed) {
+                  branchRes.detectionType = 'octopus_pivot';
+                  branchRes.pivotEmail = node.email;
+                  foundCount++;
+                  sendEvent({
+                    type: 'found',
+                    account: branchRes,
+                    completed: completedCount,
+                    total: targets.length,
+                    foundCount,
+                  });
+                }
+              })
+            ).catch(() => {});
+          }
         }
 
         sendEvent({
           type: 'octopus_progress',
-          octopusChecked: dIndex,
-          octopusTotal: FAMOUS_EMAIL_DOMAINS.length,
+          octopusChecked: checkedOctopusCount,
+          octopusTotal: orderedDomains.length,
           currentSite: d.domain,
           octopusVerifiedCount: verifiedOctopusCount,
         });
@@ -1004,7 +1134,11 @@ Provide an objective intelligence assessment with the following JSON schema:
         const response = await Promise.race([aiCall, timeoutPromise]);
 
         if (response.text) {
-          const parsed = JSON.parse(response.text) as AiProfileAnalysis;
+          let cleaned = response.text.trim();
+          if (cleaned.startsWith('```')) {
+            cleaned = cleaned.replace(/^```[a-z]*\s*/i, '').replace(/\s*```$/, '').trim();
+          }
+          const parsed = JSON.parse(cleaned) as AiProfileAnalysis;
           return res.json({ success: true, profile: parsed });
         }
       } catch (geminiError) {

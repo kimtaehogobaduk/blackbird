@@ -20,12 +20,13 @@ export interface FoundAccount {
 export interface OctopusDomainNode {
   domain: string;
   email: string;
-  status: 'VERIFIED' | 'DISCOVERED' | 'CHECKING' | 'NOT_FOUND';
+  status: 'VERIFIED' | 'ROUTABLE' | 'DISCOVERED' | 'CHECKING' | 'NOT_FOUND';
   providerName?: string;
   avatarUrl?: string;
   signals?: string[];
   responseTimeMs?: number;
   branchesCount?: number;
+  isTarget?: boolean;
 }
 
 export interface SearchSiteConfig {

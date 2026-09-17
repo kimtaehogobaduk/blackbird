@@ -16,7 +16,7 @@ export const Header: React.FC<HeaderProps> = ({
   splashQuote,
   totalUsernameSites,
   totalEmailSites,
-  totalFamousDomains = 50,
+  totalFamousDomains = 120,
   hasGeminiKey,
   onOpenDirectory,
   onOpenAbout,

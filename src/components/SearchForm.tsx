@@ -208,7 +208,7 @@ export const SearchForm: React.FC<SearchFormProps> = ({
                 className="rounded border-violet-300 text-violet-600 focus:ring-violet-500"
               />
               <span className="text-violet-800 font-semibold flex items-center space-x-1">
-                <span>🐙 문어발 도메인 확장 (50대 주요 메일)</span>
+                <span>🐙 문어발 도메인 확장 (120대 주요 메일)</span>
               </span>
             </label>
 
@@ -304,7 +304,7 @@ export const SearchForm: React.FC<SearchFormProps> = ({
             <div className="flex flex-col justify-center">
               <span className="text-slate-600 mb-1 font-medium">Octopus Multi-Vector:</span>
               <span className="text-slate-500 text-[11px] leading-relaxed">
-                Evaluates 50 major email networks (naver.com, gmail.com, daum.net, outlook.com, etc.) and branches out discovery across all verified nodes.
+                Evaluates 120 major email networks (naver.com, gmail.com, daum.net, outlook.com, proton.me, etc.) and branches out discovery across all verified nodes.
               </span>
             </div>
           </div>

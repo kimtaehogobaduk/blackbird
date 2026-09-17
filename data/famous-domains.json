@@ -1,0 +1,602 @@
+[
+  {
+    "domain": "naver.com",
+    "name": "Naver Mail",
+    "category": "Korea Major"
+  },
+  {
+    "domain": "daum.net",
+    "name": "Daum Mail",
+    "category": "Korea Major"
+  },
+  {
+    "domain": "kakao.com",
+    "name": "Kakao Mail",
+    "category": "Korea Major"
+  },
+  {
+    "domain": "hanmail.net",
+    "name": "Hanmail (Daum)",
+    "category": "Korea Major"
+  },
+  {
+    "domain": "nate.com",
+    "name": "Nate Mail",
+    "category": "Korea Major"
+  },
+  {
+    "domain": "dreamwiz.com",
+    "name": "Dreamwiz Mail",
+    "category": "Korea Major"
+  },
+  {
+    "domain": "korea.com",
+    "name": "Korea.com Mail",
+    "category": "Korea Major"
+  },
+  {
+    "domain": "unitel.co.kr",
+    "name": "Unitel Mail",
+    "category": "Korea Major"
+  },
+  {
+    "domain": "paran.com",
+    "name": "Paran Mail",
+    "category": "Korea Major"
+  },
+  {
+    "domain": "empas.com",
+    "name": "Empas Mail",
+    "category": "Korea Major"
+  },
+  {
+    "domain": "gmail.com",
+    "name": "Google Gmail",
+    "category": "Global Giant"
+  },
+  {
+    "domain": "googlemail.com",
+    "name": "Googlemail (UK/DE)",
+    "category": "Global Giant"
+  },
+  {
+    "domain": "outlook.com",
+    "name": "Microsoft Outlook",
+    "category": "Global Giant"
+  },
+  {
+    "domain": "hotmail.com",
+    "name": "Microsoft Hotmail",
+    "category": "Global Giant"
+  },
+  {
+    "domain": "live.com",
+    "name": "Microsoft Live",
+    "category": "Global Giant"
+  },
+  {
+    "domain": "msn.com",
+    "name": "MSN Mail",
+    "category": "Global Giant"
+  },
+  {
+    "domain": "windowslive.com",
+    "name": "Windows Live Mail",
+    "category": "Global Giant"
+  },
+  {
+    "domain": "passport.com",
+    "name": "Microsoft Passport",
+    "category": "Global Giant"
+  },
+  {
+    "domain": "yahoo.com",
+    "name": "Yahoo! Mail",
+    "category": "Global Giant"
+  },
+  {
+    "domain": "ymail.com",
+    "name": "Yahoo Ymail",
+    "category": "Global Giant"
+  },
+  {
+    "domain": "rocketmail.com",
+    "name": "Yahoo RocketMail",
+    "category": "Global Giant"
+  },
+  {
+    "domain": "icloud.com",
+    "name": "Apple iCloud",
+    "category": "Global Giant"
+  },
+  {
+    "domain": "me.com",
+    "name": "Apple MobileMe",
+    "category": "Global Giant"
+  },
+  {
+    "domain": "mac.com",
+    "name": "Apple Mac Mail",
+    "category": "Global Giant"
+  },
+  {
+    "domain": "aol.com",
+    "name": "AOL Mail",
+    "category": "Global Giant"
+  },
+  {
+    "domain": "aim.com",
+    "name": "AOL Instant Messenger",
+    "category": "Global Giant"
+  },
+  {
+    "domain": "proton.me",
+    "name": "Proton Mail",
+    "category": "Secure & Privacy"
+  },
+  {
+    "domain": "protonmail.com",
+    "name": "ProtonMail Classic",
+    "category": "Secure & Privacy"
+  },
+  {
+    "domain": "pm.me",
+    "name": "Proton Short (pm.me)",
+    "category": "Secure & Privacy"
+  },
+  {
+    "domain": "tuta.com",
+    "name": "Tuta Mail",
+    "category": "Secure & Privacy"
+  },
+  {
+    "domain": "tuta.io",
+    "name": "Tuta IO",
+    "category": "Secure & Privacy"
+  },
+  {
+    "domain": "tutanota.com",
+    "name": "Tutanota Classic",
+    "category": "Secure & Privacy"
+  },
+  {
+    "domain": "posteo.de",
+    "name": "Posteo Germany",
+    "category": "Secure & Privacy"
+  },
+  {
+    "domain": "posteo.net",
+    "name": "Posteo Net",
+    "category": "Secure & Privacy"
+  },
+  {
+    "domain": "fastmail.com",
+    "name": "Fastmail Global",
+    "category": "Secure & Privacy"
+  },
+  {
+    "domain": "fastmail.fm",
+    "name": "Fastmail FM",
+    "category": "Secure & Privacy"
+  },
+  {
+    "domain": "mailbox.org",
+    "name": "Mailbox.org Privacy",
+    "category": "Secure & Privacy"
+  },
+  {
+    "domain": "disroot.org",
+    "name": "Disroot Freedom Mail",
+    "category": "Secure & Privacy"
+  },
+  {
+    "domain": "startmail.com",
+    "name": "StartMail Privacy",
+    "category": "Secure & Privacy"
+  },
+  {
+    "domain": "countermail.com",
+    "name": "CounterMail Encrypted",
+    "category": "Secure & Privacy"
+  },
+  {
+    "domain": "runbox.com",
+    "name": "Runbox Norway",
+    "category": "Secure & Privacy"
+  },
+  {
+    "domain": "kolabnow.com",
+    "name": "Kolab Now Switzerland",
+    "category": "Secure & Privacy"
+  },
+  {
+    "domain": "hushmail.com",
+    "name": "Hushmail Encrypted",
+    "category": "Secure & Privacy"
+  },
+  {
+    "domain": "hey.com",
+    "name": "HEY Mail (37signals)",
+    "category": "Secure & Privacy"
+  },
+  {
+    "domain": "duck.com",
+    "name": "DuckDuckGo Email Protection",
+    "category": "Secure & Privacy"
+  },
+  {
+    "domain": "simplelogin.co",
+    "name": "SimpleLogin Aliases",
+    "category": "Secure & Privacy"
+  },
+  {
+    "domain": "gmx.com",
+    "name": "GMX Global",
+    "category": "International"
+  },
+  {
+    "domain": "gmx.de",
+    "name": "GMX Germany",
+    "category": "International"
+  },
+  {
+    "domain": "gmx.net",
+    "name": "GMX Net",
+    "category": "International"
+  },
+  {
+    "domain": "web.de",
+    "name": "WEB.DE Germany",
+    "category": "International"
+  },
+  {
+    "domain": "t-online.de",
+    "name": "Deutsche Telekom",
+    "category": "International"
+  },
+  {
+    "domain": "freenet.de",
+    "name": "Freenet Germany",
+    "category": "International"
+  },
+  {
+    "domain": "orange.fr",
+    "name": "Orange France",
+    "category": "International"
+  },
+  {
+    "domain": "free.fr",
+    "name": "Free France",
+    "category": "International"
+  },
+  {
+    "domain": "sfr.fr",
+    "name": "SFR France",
+    "category": "International"
+  },
+  {
+    "domain": "laposte.net",
+    "name": "La Poste France",
+    "category": "International"
+  },
+  {
+    "domain": "libero.it",
+    "name": "Libero Mail Italy",
+    "category": "International"
+  },
+  {
+    "domain": "virgilio.it",
+    "name": "Virgilio Italy",
+    "category": "International"
+  },
+  {
+    "domain": "tin.it",
+    "name": "Telecom Italia Net",
+    "category": "International"
+  },
+  {
+    "domain": "btinternet.com",
+    "name": "BT Internet UK",
+    "category": "International"
+  },
+  {
+    "domain": "virginmedia.com",
+    "name": "Virgin Media UK",
+    "category": "International"
+  },
+  {
+    "domain": "sky.com",
+    "name": "Sky UK Mail",
+    "category": "International"
+  },
+  {
+    "domain": "talktalk.net",
+    "name": "TalkTalk UK",
+    "category": "International"
+  },
+  {
+    "domain": "yahoo.co.jp",
+    "name": "Yahoo! Japan",
+    "category": "International"
+  },
+  {
+    "domain": "rakuten.jp",
+    "name": "Rakuten Mail Japan",
+    "category": "International"
+  },
+  {
+    "domain": "qq.com",
+    "name": "Tencent QQ Mail",
+    "category": "International"
+  },
+  {
+    "domain": "vip.qq.com",
+    "name": "Tencent QQ VIP Mail",
+    "category": "International"
+  },
+  {
+    "domain": "foxmail.com",
+    "name": "Foxmail (Tencent)",
+    "category": "International"
+  },
+  {
+    "domain": "163.com",
+    "name": "NetEase 163 Mail",
+    "category": "International"
+  },
+  {
+    "domain": "126.com",
+    "name": "NetEase 126 Mail",
+    "category": "International"
+  },
+  {
+    "domain": "yeah.net",
+    "name": "NetEase Yeah.net",
+    "category": "International"
+  },
+  {
+    "domain": "sina.com",
+    "name": "Sina Mail China",
+    "category": "International"
+  },
+  {
+    "domain": "sina.cn",
+    "name": "Sina CN Mail",
+    "category": "International"
+  },
+  {
+    "domain": "sohu.com",
+    "name": "Sohu Mail China",
+    "category": "International"
+  },
+  {
+    "domain": "aliyun.com",
+    "name": "Alibaba Cloud Mail",
+    "category": "International"
+  },
+  {
+    "domain": "yandex.com",
+    "name": "Yandex Mail Global",
+    "category": "International"
+  },
+  {
+    "domain": "yandex.ru",
+    "name": "Yandex Mail Russia",
+    "category": "International"
+  },
+  {
+    "domain": "mail.ru",
+    "name": "Mail.ru (VK Group)",
+    "category": "International"
+  },
+  {
+    "domain": "inbox.ru",
+    "name": "Inbox.ru (Mail.ru)",
+    "category": "International"
+  },
+  {
+    "domain": "list.ru",
+    "name": "List.ru (Mail.ru)",
+    "category": "International"
+  },
+  {
+    "domain": "bk.ru",
+    "name": "BK.ru (Mail.ru)",
+    "category": "International"
+  },
+  {
+    "domain": "zoho.com",
+    "name": "Zoho Mail Enterprise",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "mail.com",
+    "name": "Mail.com 1&1",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "inbox.com",
+    "name": "Inbox.com Global",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "comcast.net",
+    "name": "Xfinity Comcast",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "att.net",
+    "name": "AT&T Consumer Mail",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "verizon.net",
+    "name": "Verizon Mail",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "sbcglobal.net",
+    "name": "SBC Global (AT&T)",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "bellsouth.net",
+    "name": "BellSouth (AT&T)",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "cox.net",
+    "name": "Cox Communications",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "charter.net",
+    "name": "Spectrum Charter",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "earthlink.net",
+    "name": "EarthLink Internet",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "optonline.net",
+    "name": "Optimum Cablevision",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "frontier.com",
+    "name": "Frontier Communications",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "windstream.net",
+    "name": "Windstream Telecom",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "centurylink.net",
+    "name": "CenturyLink Lumen",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "roadrunner.com",
+    "name": "Road Runner TWC",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "juno.com",
+    "name": "Juno Webmail",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "netzero.net",
+    "name": "NetZero Mail",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "bell.net",
+    "name": "Bell Canada",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "rogers.com",
+    "name": "Rogers Canada",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "sympatico.ca",
+    "name": "Sympatico Bell Canada",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "shaw.ca",
+    "name": "Shaw Cable Canada",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "telus.net",
+    "name": "Telus Mobility Canada",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "bigpond.com",
+    "name": "Telstra BigPond Australia",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "bigpond.net.au",
+    "name": "Telstra Net Australia",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "optusnet.com.au",
+    "name": "Optus Australia",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "iinet.net.au",
+    "name": "iiNet Australia",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "dodo.com.au",
+    "name": "Dodo Australia",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "tpg.com.au",
+    "name": "TPG Telecom Australia",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "xtra.co.nz",
+    "name": "Spark Xtra New Zealand",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "vodafone.de",
+    "name": "Vodafone Germany",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "ziggo.nl",
+    "name": "Ziggo Netherlands",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "kpnmail.nl",
+    "name": "KPN Mail Netherlands",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "bluewin.ch",
+    "name": "Swisscom Bluewin Switzerland",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "skynet.be",
+    "name": "Proximus Skynet Belgium",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "rambler.ru",
+    "name": "Rambler Russia",
+    "category": "International"
+  },
+  {
+    "domain": "gmx.co.uk",
+    "name": "GMX Great Britain",
+    "category": "International"
+  },
+  {
+    "domain": "post.com",
+    "name": "Post.com (Mail.com)",
+    "category": "ISP & Legacy"
+  },
+  {
+    "domain": "usa.com",
+    "name": "USA.com (Mail.com)",
+    "category": "ISP & Legacy"
+  }
+]

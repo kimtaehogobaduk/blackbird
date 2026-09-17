@@ -39,7 +39,7 @@ export default function App() {
   const [octopusActive, setOctopusActive] = useState(false);
   const [octopusNodes, setOctopusNodes] = useState<OctopusDomainNode[]>([]);
   const [octopusChecked, setOctopusChecked] = useState(0);
-  const [octopusTotal, setOctopusTotal] = useState(50);
+  const [octopusTotal, setOctopusTotal] = useState(120);
   const [octopusVerifiedCount, setOctopusVerifiedCount] = useState(0);
   const [selectedBranchEmail, setSelectedBranchEmail] = useState<string | null>(null);
 
@@ -145,7 +145,7 @@ export default function App() {
     setOctopusActive(Boolean(params.octopus || params.type === 'email'));
     setOctopusNodes([]);
     setOctopusChecked(0);
-    setOctopusTotal(50);
+    setOctopusTotal(stats?.totalFamousDomains || 120);
     setOctopusVerifiedCount(0);
     setSelectedBranchEmail(null);
 
@@ -220,6 +220,20 @@ export default function App() {
     ? foundAccounts.filter((a) => a.pivotEmail === selectedBranchEmail)
     : foundAccounts;
 
+  const handleDeepPivotSearch = (email: string) => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    handleStartSearch({
+      query: email,
+      type: 'email',
+      category: 'all',
+      noNsfw: false,
+      concurrency: 20,
+      autoAi: autoAiAnalysis,
+      pivot: true,
+      octopus: true,
+    });
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-indigo-600 selection:text-white">
       {/* Top Navigation */}
@@ -227,7 +241,7 @@ export default function App() {
         splashQuote={stats.splashQuote}
         totalUsernameSites={stats.totalUsernameSites}
         totalEmailSites={stats.totalEmailSites}
-        totalFamousDomains={stats.totalFamousDomains || 50}
+        totalFamousDomains={stats.totalFamousDomains || 120}
         hasGeminiKey={stats.hasGeminiKey}
         onOpenDirectory={() => setIsDirectoryOpen(true)}
         onOpenAbout={() => setIsAboutOpen(true)}
@@ -272,6 +286,7 @@ export default function App() {
             isScanning={isScanning}
             onFilterByPivot={setSelectedBranchEmail}
             selectedFilterEmail={selectedBranchEmail}
+            onDeepPivotSearch={handleDeepPivotSearch}
           />
         )}
 

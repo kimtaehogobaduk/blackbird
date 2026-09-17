@@ -25,7 +25,7 @@ export const ScanProgress: React.FC<ScanProgressProps> = ({
   query,
   octopusActive,
   octopusChecked = 0,
-  octopusTotal = 50,
+  octopusTotal = 120,
   octopusVerifiedCount = 0,
 }) => {
   const percentage = total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0;
