@@ -6,6 +6,7 @@ interface HeaderProps {
   splashQuote: string;
   totalUsernameSites: number;
   totalEmailSites: number;
+  totalFamousDomains?: number;
   hasGeminiKey: boolean;
   onOpenDirectory: () => void;
   onOpenAbout: () => void;
@@ -15,6 +16,7 @@ export const Header: React.FC<HeaderProps> = ({
   splashQuote,
   totalUsernameSites,
   totalEmailSites,
+  totalFamousDomains = 50,
   hasGeminiKey,
   onOpenDirectory,
   onOpenAbout,
@@ -53,6 +55,11 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Right Action Badges */}
           <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
+            <div className="hidden xl:flex items-center space-x-1.5 text-xs font-mono text-violet-700 bg-violet-50 px-2.5 py-1.5 rounded-lg border border-violet-200">
+              <span>🐙</span>
+              <span>{totalFamousDomains} Major Domains</span>
+            </div>
+
             <button
               onClick={onOpenDirectory}
               className="flex items-center space-x-1.5 text-xs font-mono text-slate-700 hover:text-slate-950 bg-slate-100 hover:bg-slate-200/80 px-3 py-1.5 rounded-lg border border-slate-200 transition-colors shadow-2xs"

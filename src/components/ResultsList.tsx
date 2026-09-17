@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Download, FileJson, FileSpreadsheet, Copy, Check, Search } from 'lucide-react';
+import { Download, FileJson, FileSpreadsheet, Copy, Check, Search, Filter } from 'lucide-react';
 import { FoundAccount } from '../types';
 import { AccountCard } from './AccountCard';
 
@@ -12,6 +12,7 @@ interface ResultsListProps {
 export const ResultsList: React.FC<ResultsListProps> = ({ accounts, query, searchType }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [detectionFilter, setDetectionFilter] = useState<'all' | 'direct' | 'octopus'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'speed'>('name');
   const [copiedAll, setCopiedAll] = useState(false);
 
@@ -21,15 +22,33 @@ export const ResultsList: React.FC<ResultsListProps> = ({ accounts, query, searc
     return Array.from(cats).sort();
   }, [accounts]);
 
+  const octopusCount = useMemo(() => {
+    return accounts.filter((a) => a.detectionType === 'octopus_pivot').length;
+  }, [accounts]);
+
+  const directCount = useMemo(() => {
+    return accounts.filter((a) => a.detectionType !== 'octopus_pivot').length;
+  }, [accounts]);
+
   // Filter & Sort
   const filteredAccounts = useMemo(() => {
     let list = accounts.filter((acc) => {
       const matchesSearch =
         acc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        acc.url.toLowerCase().includes(searchTerm.toLowerCase());
+        acc.url.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (acc.pivotEmail && acc.pivotEmail.toLowerCase().includes(searchTerm.toLowerCase()));
+
       const matchesCat =
         selectedCategory === 'all' || acc.category?.toLowerCase() === selectedCategory.toLowerCase();
-      return matchesSearch && matchesCat;
+
+      let matchesDetection = true;
+      if (detectionFilter === 'octopus') {
+        matchesDetection = acc.detectionType === 'octopus_pivot';
+      } else if (detectionFilter === 'direct') {
+        matchesDetection = acc.detectionType !== 'octopus_pivot';
+      }
+
+      return matchesSearch && matchesCat && matchesDetection;
     });
 
     if (sortBy === 'name') {
@@ -39,7 +58,7 @@ export const ResultsList: React.FC<ResultsListProps> = ({ accounts, query, searc
     }
 
     return list;
-  }, [accounts, searchTerm, selectedCategory, sortBy]);
+  }, [accounts, searchTerm, selectedCategory, detectionFilter, sortBy]);
 
   // Export JSON
   const handleExportJson = () => {
@@ -54,7 +73,7 @@ export const ResultsList: React.FC<ResultsListProps> = ({ accounts, query, searc
 
   // Export CSV
   const handleExportCsv = () => {
-    const headers = ['Site', 'Category', 'URL', 'ResponseTimeMs', 'DetectionType', 'Metadata'];
+    const headers = ['Site', 'Category', 'URL', 'ResponseTimeMs', 'DetectionType', 'PivotEmail', 'Metadata'];
     const rows = accounts.map((acc) => {
       const metaString = (acc.metadata || [])
         .map((m) => `${m.name}: ${Array.isArray(m.value) ? m.value.join('|') : m.value}`)
@@ -65,6 +84,7 @@ export const ResultsList: React.FC<ResultsListProps> = ({ accounts, query, searc
         `"${acc.url}"`,
         acc.responseTimeMs || '',
         `"${acc.detectionType || 'direct'}"`,
+        `"${acc.pivotEmail || ''}"`,
         `"${metaString.replace(/"/g, '""')}"`,
       ].join(',');
     });
@@ -91,8 +111,8 @@ export const ResultsList: React.FC<ResultsListProps> = ({ accounts, query, searc
       {/* Control & Toolbar */}
       <div className="bg-white border border-slate-200/90 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
         {/* Search & Category Filter */}
-        <div className="flex items-center space-x-2 w-full sm:w-auto flex-1 max-w-md">
-          <div className="relative flex-1">
+        <div className="flex items-center space-x-2 w-full sm:w-auto flex-1 max-w-lg flex-wrap gap-y-2">
+          <div className="relative flex-1 min-w-[180px]">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
@@ -103,13 +123,46 @@ export const ResultsList: React.FC<ResultsListProps> = ({ accounts, query, searc
             />
           </div>
 
+          {octopusCount > 0 && (
+            <div className="inline-flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs font-mono">
+              <button
+                type="button"
+                onClick={() => setDetectionFilter('all')}
+                className={`px-2.5 py-1 rounded-md transition-all font-medium ${
+                  detectionFilter === 'all' ? 'bg-white text-indigo-700 shadow-2xs font-semibold' : 'text-slate-600'
+                }`}
+              >
+                All ({accounts.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setDetectionFilter('direct')}
+                className={`px-2 py-1 rounded-md transition-all font-medium ${
+                  detectionFilter === 'direct' ? 'bg-white text-indigo-700 shadow-2xs font-semibold' : 'text-slate-600'
+                }`}
+              >
+                Direct ({directCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setDetectionFilter('octopus')}
+                className={`px-2 py-1 rounded-md transition-all font-medium flex items-center space-x-1 ${
+                  detectionFilter === 'octopus' ? 'bg-violet-600 text-white shadow-2xs font-semibold' : 'text-violet-700'
+                }`}
+              >
+                <span>🐙</span>
+                <span>Octopus ({octopusCount})</span>
+              </button>
+            </div>
+          )}
+
           {availableCategories.length > 1 && (
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono text-slate-700 focus:outline-none focus:border-indigo-600 shrink-0"
             >
-              <option value="all">All ({accounts.length})</option>
+              <option value="all">Categories ({accounts.length})</option>
               {availableCategories.map((c) => (
                 <option key={c} value={c}>
                   {c}
@@ -121,7 +174,7 @@ export const ResultsList: React.FC<ResultsListProps> = ({ accounts, query, searc
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as 'name' | 'speed')}
-            className="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono text-slate-700 focus:outline-none focus:border-indigo-600 shrink-0 hidden sm:block"
+            className="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono text-slate-700 focus:outline-none focus:border-indigo-600 shrink-0 hidden md:block"
           >
             <option value="name">Sort A-Z</option>
             <option value="speed">Fastest</option>
@@ -163,7 +216,7 @@ export const ResultsList: React.FC<ResultsListProps> = ({ accounts, query, searc
       {filteredAccounts.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredAccounts.map((account, index) => (
-            <AccountCard key={`${account.name}-${index}`} account={account} />
+            <AccountCard key={`${account.name}-${account.detectionType}-${index}`} account={account} />
           ))}
         </div>
       ) : (

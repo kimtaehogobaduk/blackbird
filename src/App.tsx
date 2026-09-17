@@ -6,7 +6,8 @@ import { ResultsList } from './components/ResultsList';
 import { AiAnalysisCard } from './components/AiAnalysisCard';
 import { SitesDirectoryModal } from './components/SitesDirectoryModal';
 import { AboutModal } from './components/AboutModal';
-import { FoundAccount, AiProfileAnalysis } from './types';
+import { OctopusDomainPanel } from './components/OctopusDomainPanel';
+import { FoundAccount, AiProfileAnalysis, OctopusDomainNode } from './types';
 import { Sparkles, Network, Zap, ShieldCheck } from 'lucide-react';
 import { SmartLabLogo } from './components/SmartLabLogo';
 
@@ -15,6 +16,7 @@ export default function App() {
   const [stats, setStats] = useState({
     totalUsernameSites: 0,
     totalEmailSites: 0,
+    totalFamousDomains: 50,
     usernameCategories: [] as string[],
     emailCategories: [] as string[],
     splashQuote: '',
@@ -32,6 +34,14 @@ export default function App() {
   const [elapsedSec, setElapsedSec] = useState(0);
   const [foundAccounts, setFoundAccounts] = useState<FoundAccount[]>([]);
   const [autoAiAnalysis, setAutoAiAnalysis] = useState(true);
+
+  // Octopus Multi-Domain Expansion State
+  const [octopusActive, setOctopusActive] = useState(false);
+  const [octopusNodes, setOctopusNodes] = useState<OctopusDomainNode[]>([]);
+  const [octopusChecked, setOctopusChecked] = useState(0);
+  const [octopusTotal, setOctopusTotal] = useState(50);
+  const [octopusVerifiedCount, setOctopusVerifiedCount] = useState(0);
+  const [selectedBranchEmail, setSelectedBranchEmail] = useState<string | null>(null);
 
   // AI Analysis State
   const [aiAnalysis, setAiAnalysis] = useState<AiProfileAnalysis | null>(null);
@@ -99,6 +109,7 @@ export default function App() {
     concurrency: number;
     autoAi: boolean;
     pivot?: boolean;
+    octopus?: boolean;
   }) => {
     stopSearch();
 
@@ -113,6 +124,14 @@ export default function App() {
     setAiAnalysis(null);
     setIsScanning(true);
 
+    // Reset Octopus state
+    setOctopusActive(Boolean(params.octopus || params.type === 'email'));
+    setOctopusNodes([]);
+    setOctopusChecked(0);
+    setOctopusTotal(50);
+    setOctopusVerifiedCount(0);
+    setSelectedBranchEmail(null);
+
     const startTime = Date.now();
     timerRef.current = setInterval(() => {
       setElapsedSec(Number(((Date.now() - startTime) / 1000).toFixed(1)));
@@ -120,7 +139,9 @@ export default function App() {
 
     const sseUrl = `/api/search/stream?type=${params.type}&query=${encodeURIComponent(
       params.query
-    )}&category=${params.category}&no_nsfw=${params.noNsfw}&concurrency=${params.concurrency}&pivot=${params.pivot || false}`;
+    )}&category=${params.category}&no_nsfw=${params.noNsfw}&concurrency=${params.concurrency}&pivot=${
+      params.pivot || false
+    }&octopus=${params.octopus || false}`;
 
     const es = new EventSource(sseUrl);
     eventSourceRef.current = es;
@@ -131,6 +152,24 @@ export default function App() {
 
         if (data.type === 'init') {
           setTotalSites(data.totalSites || 0);
+          if (data.octopusEnabled !== undefined) {
+            setOctopusActive(data.octopusEnabled);
+          }
+        } else if (data.type === 'octopus_init') {
+          setOctopusActive(true);
+          if (data.octopusTotal) setOctopusTotal(data.octopusTotal);
+        } else if (data.type === 'octopus_found' && data.octopusNode) {
+          setOctopusNodes((prev) => {
+            if (prev.some((n) => n.email === data.octopusNode.email)) return prev;
+            return [...prev, data.octopusNode];
+          });
+          if (data.octopusVerifiedCount !== undefined) {
+            setOctopusVerifiedCount(data.octopusVerifiedCount);
+          }
+        } else if (data.type === 'octopus_progress') {
+          if (data.octopusChecked !== undefined) setOctopusChecked(data.octopusChecked);
+          if (data.octopusTotal !== undefined) setOctopusTotal(data.octopusTotal);
+          if (data.octopusVerifiedCount !== undefined) setOctopusVerifiedCount(data.octopusVerifiedCount);
         } else if (data.type === 'found' && data.account) {
           foundAccountsRef.current = [data.account, ...foundAccountsRef.current];
           setFoundAccounts([...foundAccountsRef.current]);
@@ -157,6 +196,13 @@ export default function App() {
     };
   };
 
+  const handlePrefix = activeQuery.includes('@') ? activeQuery.split('@')[0] : activeQuery;
+
+  // Filter accounts when a specific branch is selected
+  const displayedAccounts = selectedBranchEmail
+    ? foundAccounts.filter((a) => a.pivotEmail === selectedBranchEmail)
+    : foundAccounts;
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-indigo-600 selection:text-white">
       {/* Top Navigation */}
@@ -164,6 +210,7 @@ export default function App() {
         splashQuote={stats.splashQuote}
         totalUsernameSites={stats.totalUsernameSites}
         totalEmailSites={stats.totalEmailSites}
+        totalFamousDomains={stats.totalFamousDomains || 50}
         hasGeminiKey={stats.hasGeminiKey}
         onOpenDirectory={() => setIsDirectoryOpen(true)}
         onOpenAbout={() => setIsAboutOpen(true)}
@@ -191,6 +238,23 @@ export default function App() {
             elapsedSec={elapsedSec}
             isScanning={isScanning}
             query={activeQuery}
+            octopusActive={octopusActive}
+            octopusChecked={octopusChecked}
+            octopusTotal={octopusTotal}
+            octopusVerifiedCount={octopusVerifiedCount}
+          />
+        )}
+
+        {/* Octopus Multi-Domain Expansion Panel */}
+        {(octopusActive || octopusNodes.length > 0) && activeQuery && (
+          <OctopusDomainPanel
+            handle={handlePrefix}
+            verifiedNodes={octopusNodes}
+            totalDomains={octopusTotal}
+            checkedCount={octopusChecked}
+            isScanning={isScanning}
+            onFilterByPivot={setSelectedBranchEmail}
+            selectedFilterEmail={selectedBranchEmail}
           />
         )}
 
@@ -220,9 +284,9 @@ export default function App() {
         )}
 
         {/* Search Results List */}
-        {foundAccounts.length > 0 ? (
+        {displayedAccounts.length > 0 ? (
           <ResultsList
-            accounts={foundAccounts}
+            accounts={displayedAccounts}
             query={activeQuery}
             searchType={searchType}
           />
@@ -232,10 +296,22 @@ export default function App() {
               <ShieldCheck className="w-6 h-6" />
             </div>
             <h3 className="text-base font-mono font-bold text-slate-900">
-              NO ACCOUNTS DETECTED FOR "{activeQuery}"
+              {selectedBranchEmail
+                ? `NO ADDITIONAL PLATFORM MATCHES FOR BRANCH "${selectedBranchEmail}"`
+                : `NO ACCOUNTS DETECTED FOR "${activeQuery}"`}
             </h3>
             <p className="text-xs text-slate-500 font-mono max-w-md mx-auto leading-relaxed">
-              Scanned {totalSites} platform nodes with 0 matching signatures. Check the handle/email spelling or adjust domain filters.
+              {selectedBranchEmail ? (
+                <button
+                  type="button"
+                  onClick={() => setSelectedBranchEmail(null)}
+                  className="text-indigo-600 hover:text-indigo-800 underline font-semibold"
+                >
+                  Clear branch filter to view all verified results
+                </button>
+              ) : (
+                `Scanned ${totalSites} platform nodes and 50 major email networks with 0 matching signatures.`
+              )}
             </p>
           </div>
         ) : !isScanning && (
@@ -248,20 +324,20 @@ export default function App() {
               <h3 className="text-sm font-mono font-bold text-slate-900">
                 750+ Verified Platform Nodes
               </h3>
-              <p className="text-xs text-slate-600 leading-relaxed font-sans">
-                Broad asynchronous coverage across software repositories, social networks, developer hubs, gaming communities, and multimedia platforms.
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Asynchronous enumeration across 717+ username services and 40+ direct email services with sub-second parallel HTTP probing.
               </p>
             </div>
 
             <div className="bg-white border border-slate-200/90 rounded-2xl p-6 space-y-3 shadow-xs hover:border-slate-300 transition-all">
-              <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700 font-mono font-bold text-xs shadow-2xs">
-                <Zap className="w-5 h-5" />
+              <div className="w-9 h-9 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center text-violet-700 font-mono font-bold text-xs shadow-2xs">
+                <span className="text-lg">🐙</span>
               </div>
               <h3 className="text-sm font-mono font-bold text-slate-900">
-                Reverse Email & Handle Pivot
+                Octopus Multi-Domain Expansion
               </h3>
-              <p className="text-xs text-slate-600 leading-relaxed font-sans">
-                Multi-vector signature probing with avatar hashing, public registration discovery, and automated handle cross-correlation.
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Evaluates handle prefixes across 50 renowned mail providers (Naver, Gmail, Daum, Kakao, Outlook, Proton, etc.) and branches out multi-vector discovery.
               </p>
             </div>
 
@@ -270,46 +346,54 @@ export default function App() {
                 <Sparkles className="w-5 h-5" />
               </div>
               <h3 className="text-sm font-mono font-bold text-slate-900">
-                AI Digital Footprint Intelligence
+                Gemini 2.5 AI Profiling
               </h3>
-              <p className="text-xs text-slate-600 leading-relaxed font-sans">
-                Real-time synthesis of target behavioral archetypes, account cluster correlation, and digital exposure risk indexing powered by Gemini.
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Synthesizes discovered account categories and metadata into behavioral dossiers, exposure risk scores, and digital footprint analysis.
               </p>
             </div>
           </div>
         )}
       </main>
 
+      {/* Footer */}
+      <footer className="border-t border-slate-200/80 bg-white py-6 mt-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-slate-500">
+          <div className="flex items-center space-x-2">
+            <SmartLabLogo size={18} />
+            <span className="font-semibold text-slate-800">SMARTLAB_EXPERIMENT</span>
+            <span>•</span>
+            <span>Digital Identity & OSINT Intelligence</span>
+          </div>
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setIsDirectoryOpen(true)}
+              className="hover:text-indigo-600 transition-colors"
+            >
+              Supported Platforms ({stats.totalUsernameSites + stats.totalEmailSites}+)
+            </button>
+            <span>•</span>
+            <button
+              onClick={() => setIsAboutOpen(true)}
+              className="hover:text-indigo-600 transition-colors"
+            >
+              Experiment Protocol
+            </button>
+          </div>
+        </div>
+      </footer>
+
       {/* Modals */}
       <SitesDirectoryModal
         isOpen={isDirectoryOpen}
         onClose={() => setIsDirectoryOpen(false)}
       />
+
       <AboutModal
         isOpen={isAboutOpen}
         onClose={() => setIsAboutOpen(false)}
+        stats={stats}
       />
-
-      {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white py-5 mt-12 shadow-2xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono text-slate-500">
-          <div className="flex items-center space-x-2">
-            <span className="text-slate-900 font-bold">SMARTLAB_EXPERIMENT</span>
-            <span>•</span>
-            <span>Digital Identity & Intelligence Laboratory</span>
-          </div>
-          <div className="flex items-center space-x-4">
-            <span>Zero-Retention Architecture</span>
-            <span>•</span>
-            <button
-              onClick={() => setIsAboutOpen(true)}
-              className="text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
-            >
-              Protocol Specification
-            </button>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

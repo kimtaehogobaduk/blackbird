@@ -92,6 +92,12 @@ export const AccountCard: React.FC<AccountCardProps> = ({ account }) => {
                     Handle Pivot
                   </span>
                 )}
+                {account.detectionType === 'octopus_pivot' && (
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full border bg-violet-50 text-violet-700 border-violet-200 font-semibold flex items-center space-x-1">
+                    <span>🐙</span>
+                    <span>{account.pivotEmail ? `${account.pivotEmail}` : 'Octopus Branch'}</span>
+                  </span>
+                )}
                 {account.responseTimeMs && (
                   <span className="text-[10px] font-mono text-slate-400">
                     {account.responseTimeMs}ms

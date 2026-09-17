@@ -264,9 +264,9 @@ wmn-data.json
 *.csv
 *.pdf
 logs/*.log
-logs/blackbird.log
-*_blackbird/*
+logs/smartlab_experiment.log
+*_smartlab_experiment/*
 *.log
-logs/blackbird.log
+logs/smartlab_experiment.log
 /logs
 .ai_key.json

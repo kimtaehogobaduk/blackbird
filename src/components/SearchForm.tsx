@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Mail, User, SlidersHorizontal, Sparkles, Square, Play, X, Compass, Zap } from 'lucide-react';
+import { Search, Mail, User, SlidersHorizontal, Sparkles, Square, Play, X, Compass, Zap, GitBranch, Network } from 'lucide-react';
 
 interface SearchFormProps {
   onSearch: (params: {
@@ -10,6 +10,7 @@ interface SearchFormProps {
     concurrency: number;
     autoAi: boolean;
     pivot?: boolean;
+    octopus?: boolean;
   }) => void;
   onStop: () => void;
   isScanning: boolean;
@@ -29,6 +30,7 @@ export const SearchForm: React.FC<SearchFormProps> = ({
   const [concurrency, setConcurrency] = useState(25);
   const [autoAi, setAutoAi] = useState(true);
   const [pivotUsername, setPivotUsername] = useState(true);
+  const [octopusMode, setOctopusMode] = useState(true);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -43,6 +45,7 @@ export const SearchForm: React.FC<SearchFormProps> = ({
       concurrency,
       autoAi,
       pivot: searchType === 'email' ? pivotUsername : false,
+      octopus: octopusMode,
     });
   };
 
@@ -113,47 +116,33 @@ export const SearchForm: React.FC<SearchFormProps> = ({
               <>
                 <button
                   type="button"
-                  onClick={() => handleQuickPreset('research@lab.org', 'email')}
+                  onClick={() => handleQuickPreset('contact@naver.com', 'email')}
                   className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200 transition-colors"
                 >
-                  research@lab.org
+                  contact@naver.com
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleQuickPreset('contact@example.com', 'email')}
+                  onClick={() => handleQuickPreset('developer@gmail.com', 'email')}
                   className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200 transition-colors"
                 >
-                  contact@example.com
+                  developer@gmail.com
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickPreset('researcher@outlook.com', 'email')}
+                  className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200 transition-colors"
+                >
+                  researcher@outlook.com
                 </button>
               </>
             )}
           </div>
         </div>
 
-        {/* Email Mode Smart Pivot Banner */}
-        {searchType === 'email' && (
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 bg-indigo-50/70 border border-indigo-200/70 rounded-xl text-xs font-mono gap-2">
-            <div className="flex items-center space-x-2 text-indigo-950">
-              <Zap className="w-4 h-4 text-indigo-600 shrink-0" />
-              <span>
-                <strong>Enhanced Trace Engine:</strong> 40+ direct platform signatures (GitHub, Keybase, Adobe, Notion...)
-              </span>
-            </div>
-            <label className="flex items-center space-x-2 cursor-pointer select-none text-indigo-900 hover:text-indigo-950 transition-colors shrink-0">
-              <input
-                type="checkbox"
-                checked={pivotUsername}
-                onChange={(e) => setPivotUsername(e.target.checked)}
-                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-              />
-              <span className="font-semibold text-indigo-700">+ 717 Platform Handle Pivot</span>
-            </label>
-          </div>
-        )}
-
-        {/* Input & Main CTA */}
+        {/* Input Bar */}
         <div className="relative flex items-center">
-          <div className="absolute left-4 text-slate-400 pointer-events-none">
+          <div className="absolute left-4 pointer-events-none text-slate-400">
             {searchType === 'username' ? (
               <User className="w-5 h-5 text-indigo-600" />
             ) : (
@@ -162,37 +151,37 @@ export const SearchForm: React.FC<SearchFormProps> = ({
           </div>
 
           <input
-            type={searchType === 'email' ? 'email' : 'text'}
+            type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            disabled={isScanning}
             placeholder={
               searchType === 'username'
-                ? 'Enter target username (e.g. alex_tech, developer, analyst)...'
-                : 'Enter target email address (e.g. target@example.com)...'
+                ? 'Enter target username or handle (e.g., johndoe, dev_lead)...'
+                : 'Enter target email address (e.g., user@domain.com) for reverse lookup...'
             }
-            className="w-full pl-12 pr-32 py-3.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 font-mono text-sm focus:outline-none focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all shadow-2xs"
-            disabled={isScanning}
+            className="w-full pl-12 pr-28 sm:pr-36 py-3.5 bg-slate-50/70 border border-slate-200 focus:border-indigo-600 focus:bg-white rounded-xl text-slate-900 placeholder:text-slate-400 font-mono text-sm focus:outline-none transition-all shadow-xs"
           />
 
           {query && !isScanning && (
             <button
               type="button"
               onClick={() => setQuery('')}
-              className="absolute right-32 p-1.5 text-slate-400 hover:text-slate-600 transition-colors"
+              className="absolute right-28 sm:right-36 mr-2 p-1 text-slate-400 hover:text-slate-600 rounded-md transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
           )}
 
-          <div className="absolute right-2 flex items-center space-x-2">
+          <div className="absolute right-2">
             {isScanning ? (
               <button
                 type="button"
                 onClick={onStop}
-                className="flex items-center space-x-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-mono text-xs px-4 py-2.5 rounded-lg border border-rose-200 transition-all cursor-pointer font-semibold shadow-2xs"
+                className="flex items-center space-x-1.5 bg-rose-600 hover:bg-rose-700 text-white font-mono text-xs px-4 py-2.5 rounded-lg shadow-sm transition-all cursor-pointer font-semibold animate-pulse"
               >
                 <Square className="w-3.5 h-3.5 fill-current" />
-                <span>Stop Probe</span>
+                <span>Abort Scan</span>
               </button>
             ) : (
               <button
@@ -207,29 +196,39 @@ export const SearchForm: React.FC<SearchFormProps> = ({
           </div>
         </div>
 
-        {/* Filter Toggle & Quick Bar */}
-        <div className="flex items-center justify-between text-xs pt-1">
-          <button
-            type="button"
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className="flex items-center space-x-1.5 text-slate-600 hover:text-slate-900 font-mono transition-colors"
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-600" />
-            <span>{showAdvanced ? 'Hide Scan Parameters' : 'Advanced Parameters & Configuration'}</span>
-          </button>
-
-          <div className="flex items-center space-x-4 font-mono text-slate-600">
-            <label className="flex items-center space-x-2 cursor-pointer select-none">
+        {/* Feature Toggles Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-1 text-xs font-mono">
+          <div className="flex items-center flex-wrap gap-4 text-slate-600">
+            {/* Octopus Multi-Domain Toggle */}
+            <label className="flex items-center space-x-1.5 cursor-pointer select-none bg-violet-50/80 hover:bg-violet-100/80 border border-violet-200/80 px-2.5 py-1 rounded-lg transition-colors">
               <input
                 type="checkbox"
-                checked={noNsfw}
-                onChange={(e) => setNoNsfw(e.target.checked)}
-                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                checked={octopusMode}
+                onChange={(e) => setOctopusMode(e.target.checked)}
+                className="rounded border-violet-300 text-violet-600 focus:ring-violet-500"
               />
-              <span className="text-slate-700">Filter NSFW</span>
+              <span className="text-violet-800 font-semibold flex items-center space-x-1">
+                <span>🐙 문어발 도메인 확장 (50대 주요 메일)</span>
+              </span>
             </label>
 
-            <label className="flex items-center space-x-2 cursor-pointer select-none">
+            {/* Smart Username Pivot Toggle (for email mode) */}
+            {searchType === 'email' && (
+              <label className="flex items-center space-x-1.5 cursor-pointer select-none bg-indigo-50/80 hover:bg-indigo-100/80 border border-indigo-200/80 px-2.5 py-1 rounded-lg transition-colors">
+                <input
+                  type="checkbox"
+                  checked={pivotUsername}
+                  onChange={(e) => setPivotUsername(e.target.checked)}
+                  className="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span className="text-indigo-800 font-semibold flex items-center space-x-1">
+                  <GitBranch className="w-3 h-3 text-indigo-600" />
+                  <span>@앞 아이디 700+ 사이트 피벗</span>
+                </span>
+              </label>
+            )}
+
+            <label className="flex items-center space-x-1.5 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={autoAi}
@@ -241,7 +240,26 @@ export const SearchForm: React.FC<SearchFormProps> = ({
                 <span>AI Profile</span>
               </span>
             </label>
+
+            <label className="flex items-center space-x-1.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={noNsfw}
+                onChange={(e) => setNoNsfw(e.target.checked)}
+                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span className="text-slate-700">Filter NSFW</span>
+            </label>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="flex items-center space-x-1.5 text-slate-600 hover:text-slate-900 transition-colors self-start sm:self-auto"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-600" />
+            <span>{showAdvanced ? 'Hide Options' : 'Options'}</span>
+          </button>
         </div>
 
         {/* Collapsible Advanced Parameters */}
@@ -284,9 +302,9 @@ export const SearchForm: React.FC<SearchFormProps> = ({
             </div>
 
             <div className="flex flex-col justify-center">
-              <span className="text-slate-600 mb-1 font-medium">Target Specification:</span>
+              <span className="text-slate-600 mb-1 font-medium">Octopus Multi-Vector:</span>
               <span className="text-slate-500 text-[11px] leading-relaxed">
-                Asynchronous HTTP fingerprinting with real-time SSE discovery streaming.
+                Evaluates 50 major email networks (naver.com, gmail.com, daum.net, outlook.com, etc.) and branches out discovery across all verified nodes.
               </span>
             </div>
           </div>

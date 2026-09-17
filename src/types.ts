@@ -13,7 +13,19 @@ export interface FoundAccount {
   status: 'FOUND' | 'NOT-FOUND' | 'ERROR';
   metadata?: ExtractedMetadata[];
   responseTimeMs?: number;
-  detectionType?: 'email' | 'username_pivot';
+  detectionType?: 'email' | 'username_pivot' | 'octopus_pivot';
+  pivotEmail?: string;
+}
+
+export interface OctopusDomainNode {
+  domain: string;
+  email: string;
+  status: 'VERIFIED' | 'DISCOVERED' | 'CHECKING' | 'NOT_FOUND';
+  providerName?: string;
+  avatarUrl?: string;
+  signals?: string[];
+  responseTimeMs?: number;
+  branchesCount?: number;
 }
 
 export interface SearchSiteConfig {
@@ -30,11 +42,12 @@ export interface SearchSiteConfig {
   data?: string | null;
   headers?: Record<string, string> | null;
   profile_url?: string;
+  known?: string[];
   metadata?: any[];
 }
 
 export interface SearchProgressEvent {
-  type: 'init' | 'progress' | 'found' | 'complete' | 'error';
+  type: 'init' | 'progress' | 'found' | 'complete' | 'error' | 'octopus_init' | 'octopus_found' | 'octopus_progress';
   query?: string;
   searchType?: 'username' | 'email';
   totalSites?: number;
@@ -44,6 +57,10 @@ export interface SearchProgressEvent {
   account?: FoundAccount;
   elapsedSec?: number;
   message?: string;
+  octopusNode?: OctopusDomainNode;
+  octopusTotal?: number;
+  octopusChecked?: number;
+  octopusVerifiedCount?: number;
 }
 
 export interface AiProfileAnalysis {

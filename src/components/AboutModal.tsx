@@ -5,6 +5,12 @@ import { SmartLabLogo } from './SmartLabLogo';
 interface AboutModalProps {
   isOpen: boolean;
   onClose: () => void;
+  stats?: {
+    totalUsernameSites?: number;
+    totalEmailSites?: number;
+    totalFamousDomains?: number;
+    splashQuote?: string;
+  };
 }
 
 export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
