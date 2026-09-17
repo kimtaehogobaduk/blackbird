@@ -1,0 +1,315 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Header } from './components/Header';
+import { SearchForm } from './components/SearchForm';
+import { ScanProgress } from './components/ScanProgress';
+import { ResultsList } from './components/ResultsList';
+import { AiAnalysisCard } from './components/AiAnalysisCard';
+import { SitesDirectoryModal } from './components/SitesDirectoryModal';
+import { AboutModal } from './components/AboutModal';
+import { FoundAccount, AiProfileAnalysis } from './types';
+import { Sparkles, Network, Zap, ShieldCheck } from 'lucide-react';
+import { SmartLabLogo } from './components/SmartLabLogo';
+
+export default function App() {
+  // Stats & Config
+  const [stats, setStats] = useState({
+    totalUsernameSites: 0,
+    totalEmailSites: 0,
+    usernameCategories: [] as string[],
+    emailCategories: [] as string[],
+    splashQuote: '',
+    hasGeminiKey: false,
+  });
+
+  // Search State
+  const [activeQuery, setActiveQuery] = useState('');
+  const [searchType, setSearchType] = useState<'username' | 'email'>('username');
+  const [isScanning, setIsScanning] = useState(false);
+  const [completed, setCompleted] = useState(0);
+  const [totalSites, setTotalSites] = useState(0);
+  const [foundCount, setFoundCount] = useState(0);
+  const [currentSite, setCurrentSite] = useState('');
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const [foundAccounts, setFoundAccounts] = useState<FoundAccount[]>([]);
+  const [autoAiAnalysis, setAutoAiAnalysis] = useState(true);
+
+  // AI Analysis State
+  const [aiAnalysis, setAiAnalysis] = useState<AiProfileAnalysis | null>(null);
+  const [isAnalyzingAi, setIsAnalyzingAi] = useState(false);
+
+  // Modals
+  const [isDirectoryOpen, setIsDirectoryOpen] = useState(false);
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
+
+  // References
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const foundAccountsRef = useRef<FoundAccount[]>([]);
+  const timerRef = useRef<any>(null);
+
+  // Fetch initial stats
+  useEffect(() => {
+    fetch('/api/stats')
+      .then((res) => res.json())
+      .then((data) => setStats(data))
+      .catch((err) => console.error('Stats error:', err));
+  }, []);
+
+  const stopSearch = () => {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    setIsScanning(false);
+  };
+
+  const triggerAiAnalysis = async (accounts: FoundAccount[], query: string, type: 'username' | 'email') => {
+    if (accounts.length === 0) return;
+    setIsAnalyzingAi(true);
+
+    try {
+      const res = await fetch('/api/ai/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          [type]: query,
+          foundAccounts: accounts,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.profile) {
+        setAiAnalysis(data.profile);
+      }
+    } catch (err) {
+      console.error('AI Analysis failed:', err);
+    } finally {
+      setIsAnalyzingAi(false);
+    }
+  };
+
+  const handleStartSearch = (params: {
+    query: string;
+    type: 'username' | 'email';
+    category: string;
+    noNsfw: boolean;
+    concurrency: number;
+    autoAi: boolean;
+    pivot?: boolean;
+  }) => {
+    stopSearch();
+
+    setActiveQuery(params.query);
+    setSearchType(params.type);
+    setAutoAiAnalysis(params.autoAi);
+    setFoundAccounts([]);
+    foundAccountsRef.current = [];
+    setFoundCount(0);
+    setCompleted(0);
+    setElapsedSec(0);
+    setAiAnalysis(null);
+    setIsScanning(true);
+
+    const startTime = Date.now();
+    timerRef.current = setInterval(() => {
+      setElapsedSec(Number(((Date.now() - startTime) / 1000).toFixed(1)));
+    }, 200);
+
+    const sseUrl = `/api/search/stream?type=${params.type}&query=${encodeURIComponent(
+      params.query
+    )}&category=${params.category}&no_nsfw=${params.noNsfw}&concurrency=${params.concurrency}&pivot=${params.pivot || false}`;
+
+    const es = new EventSource(sseUrl);
+    eventSourceRef.current = es;
+
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        if (data.type === 'init') {
+          setTotalSites(data.totalSites || 0);
+        } else if (data.type === 'found' && data.account) {
+          foundAccountsRef.current = [data.account, ...foundAccountsRef.current];
+          setFoundAccounts([...foundAccountsRef.current]);
+          setFoundCount(data.foundCount || foundAccountsRef.current.length);
+          if (data.completed !== undefined) setCompleted(data.completed);
+        } else if (data.type === 'progress') {
+          if (data.completed !== undefined) setCompleted(data.completed);
+          if (data.currentSite) setCurrentSite(data.currentSite);
+          if (data.foundCount !== undefined) setFoundCount(data.foundCount);
+        } else if (data.type === 'complete') {
+          stopSearch();
+          setElapsedSec(data.elapsedSec);
+          if (params.autoAi && foundAccountsRef.current.length > 0) {
+            triggerAiAnalysis(foundAccountsRef.current, params.query, params.type);
+          }
+        }
+      } catch (e) {
+        console.error('Error parsing SSE event:', e);
+      }
+    };
+
+    es.onerror = () => {
+      stopSearch();
+    };
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-indigo-600 selection:text-white">
+      {/* Top Navigation */}
+      <Header
+        splashQuote={stats.splashQuote}
+        totalUsernameSites={stats.totalUsernameSites}
+        totalEmailSites={stats.totalEmailSites}
+        hasGeminiKey={stats.hasGeminiKey}
+        onOpenDirectory={() => setIsDirectoryOpen(true)}
+        onOpenAbout={() => setIsAboutOpen(true)}
+      />
+
+      {/* Main Container */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {/* Search Control Box */}
+        <SearchForm
+          onSearch={handleStartSearch}
+          onStop={stopSearch}
+          isScanning={isScanning}
+          categories={
+            searchType === 'username' ? stats.usernameCategories : stats.emailCategories
+          }
+        />
+
+        {/* Live Progress Bar (when scanning or scanned) */}
+        {(isScanning || completed > 0) && (
+          <ScanProgress
+            completed={completed}
+            total={totalSites}
+            foundCount={foundCount}
+            currentSite={currentSite}
+            elapsedSec={elapsedSec}
+            isScanning={isScanning}
+            query={activeQuery}
+          />
+        )}
+
+        {/* AI Analysis Loading Card */}
+        {isAnalyzingAi && !aiAnalysis && (
+          <div className="bg-white border border-indigo-200 rounded-2xl p-8 text-center space-y-3 shadow-xs">
+            <div className="inline-flex p-3 rounded-xl bg-indigo-50 border border-indigo-200 animate-pulse text-indigo-600">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <h3 className="text-sm font-mono font-bold text-slate-900 tracking-tight">
+              SYNTHESIZING DIGITAL IDENTITY DOSSIER...
+            </h3>
+            <p className="text-xs text-slate-500 font-mono max-w-md mx-auto">
+              Analyzing verified footprint distribution, behavioral clusters, and exposure metrics with Gemini AI.
+            </p>
+          </div>
+        )}
+
+        {/* AI Analysis Dossier */}
+        {aiAnalysis && (
+          <AiAnalysisCard
+            analysis={aiAnalysis}
+            isLoading={isAnalyzingAi}
+            onRefresh={() => triggerAiAnalysis(foundAccounts, activeQuery, searchType)}
+            target={activeQuery}
+          />
+        )}
+
+        {/* Search Results List */}
+        {foundAccounts.length > 0 ? (
+          <ResultsList
+            accounts={foundAccounts}
+            query={activeQuery}
+            searchType={searchType}
+          />
+        ) : !isScanning && completed > 0 ? (
+          <div className="text-center py-16 bg-white border border-slate-200 rounded-2xl p-8 space-y-3 shadow-xs">
+            <div className="w-12 h-12 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto text-slate-400">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
+            <h3 className="text-base font-mono font-bold text-slate-900">
+              NO ACCOUNTS DETECTED FOR "{activeQuery}"
+            </h3>
+            <p className="text-xs text-slate-500 font-mono max-w-md mx-auto leading-relaxed">
+              Scanned {totalSites} platform nodes with 0 matching signatures. Check the handle/email spelling or adjust domain filters.
+            </p>
+          </div>
+        ) : !isScanning && (
+          /* Laboratory Overview / Pillars */
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2">
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-6 space-y-3 shadow-xs hover:border-slate-300 transition-all">
+              <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700 font-mono font-bold text-xs shadow-2xs">
+                <Network className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-mono font-bold text-slate-900">
+                750+ Verified Platform Nodes
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed font-sans">
+                Broad asynchronous coverage across software repositories, social networks, developer hubs, gaming communities, and multimedia platforms.
+              </p>
+            </div>
+
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-6 space-y-3 shadow-xs hover:border-slate-300 transition-all">
+              <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700 font-mono font-bold text-xs shadow-2xs">
+                <Zap className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-mono font-bold text-slate-900">
+                Reverse Email & Handle Pivot
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed font-sans">
+                Multi-vector signature probing with avatar hashing, public registration discovery, and automated handle cross-correlation.
+              </p>
+            </div>
+
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-6 space-y-3 shadow-xs hover:border-slate-300 transition-all">
+              <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700 font-mono font-bold text-xs shadow-2xs">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-mono font-bold text-slate-900">
+                AI Digital Footprint Intelligence
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed font-sans">
+                Real-time synthesis of target behavioral archetypes, account cluster correlation, and digital exposure risk indexing powered by Gemini.
+              </p>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* Modals */}
+      <SitesDirectoryModal
+        isOpen={isDirectoryOpen}
+        onClose={() => setIsDirectoryOpen(false)}
+      />
+      <AboutModal
+        isOpen={isAboutOpen}
+        onClose={() => setIsAboutOpen(false)}
+      />
+
+      {/* Footer */}
+      <footer className="border-t border-slate-200 bg-white py-5 mt-12 shadow-2xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono text-slate-500">
+          <div className="flex items-center space-x-2">
+            <span className="text-slate-900 font-bold">SMARTLAB_EXPERIMENT</span>
+            <span>•</span>
+            <span>Digital Identity & Intelligence Laboratory</span>
+          </div>
+          <div className="flex items-center space-x-4">
+            <span>Zero-Retention Architecture</span>
+            <span>•</span>
+            <button
+              onClick={() => setIsAboutOpen(true)}
+              className="text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
+            >
+              Protocol Specification
+            </button>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}

@@ -1,0 +1,6 @@
+{
+  "name": "SMARTLAB_EXPERIMENT",
+  "description": "Autonomous digital identity verification & OSINT intelligence experiment across 750+ verified platform nodes with real-time streaming, metadata extraction, and AI behavioral profiling.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
