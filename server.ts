@@ -991,13 +991,17 @@ Provide an objective intelligence assessment with the following JSON schema:
   ]
 }`;
 
-        const response = await ai.models.generateContent({
+        const aiCall = ai.models.generateContent({
           model: 'gemini-2.5-flash',
           contents: prompt,
           config: {
             responseMimeType: 'application/json',
           },
         });
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('AI generation timed out')), 8000)
+        );
+        const response = await Promise.race([aiCall, timeoutPromise]);
 
         if (response.text) {
           const parsed = JSON.parse(response.text) as AiProfileAnalysis;

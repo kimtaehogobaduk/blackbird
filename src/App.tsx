@@ -46,6 +46,7 @@ export default function App() {
   // AI Analysis State
   const [aiAnalysis, setAiAnalysis] = useState<AiProfileAnalysis | null>(null);
   const [isAnalyzingAi, setIsAnalyzingAi] = useState(false);
+  const [aiAnalysisError, setAiAnalysisError] = useState<string | null>(null);
 
   // Modals
   const [isDirectoryOpen, setIsDirectoryOpen] = useState(false);
@@ -79,23 +80,39 @@ export default function App() {
   const triggerAiAnalysis = async (accounts: FoundAccount[], query: string, type: 'username' | 'email') => {
     if (accounts.length === 0) return;
     setIsAnalyzingAi(true);
+    setAiAnalysisError(null);
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
       const res = await fetch('/api/ai/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           [type]: query,
           foundAccounts: accounts,
         }),
       });
 
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || `Server responded with status ${res.status}`);
+      }
+
       const data = await res.json();
       if (data.success && data.profile) {
         setAiAnalysis(data.profile);
+        setAiAnalysisError(null);
+      } else {
+        throw new Error(data.error || 'Failed to parse AI profile response');
       }
-    } catch (err) {
-      console.error('AI Analysis failed:', err);
+    } catch (err: any) {
+      console.warn('AI Analysis notification:', err?.message || err);
+      setAiAnalysisError(err?.name === 'AbortError' ? 'Analysis timed out. Click below to retry.' : (err?.message || 'Failed to complete AI analysis'));
     } finally {
       setIsAnalyzingAi(false);
     }
@@ -270,6 +287,31 @@ export default function App() {
             <p className="text-xs text-slate-500 font-mono max-w-md mx-auto">
               Analyzing verified footprint distribution, behavioral clusters, and exposure metrics with Gemini AI.
             </p>
+          </div>
+        )}
+
+        {/* AI Analysis Error / Retry Card */}
+        {aiAnalysisError && !aiAnalysis && !isAnalyzingAi && foundAccounts.length > 0 && (
+          <div className="bg-amber-50/70 border border-amber-200/90 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center space-x-3 text-left">
+              <div className="p-2.5 rounded-xl bg-amber-100 text-amber-800 shrink-0">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs font-mono font-semibold text-amber-900">
+                  AI DOSSIER SYNTHESIS PAUSED
+                </p>
+                <p className="text-xs text-amber-700 font-mono mt-0.5">
+                  {aiAnalysisError}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => triggerAiAnalysis(foundAccounts, activeQuery, searchType)}
+              className="shrink-0 px-3.5 py-1.5 bg-amber-700 hover:bg-amber-800 text-white text-xs font-mono rounded-lg transition-colors cursor-pointer"
+            >
+              Retry Synthesis
+            </button>
           </div>
         )}
 
