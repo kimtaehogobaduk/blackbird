@@ -84,7 +84,7 @@ export default function App() {
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
 
       const res = await fetch('/api/ai/analyze', {
         method: 'POST',

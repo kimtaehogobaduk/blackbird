@@ -1122,14 +1122,14 @@ Provide an objective intelligence assessment with the following JSON schema:
 }`;
 
         const aiCall = ai.models.generateContent({
-          model: 'gemini-2.5-flash',
+          model: 'gemini-3.8-flash',
           contents: prompt,
           config: {
             responseMimeType: 'application/json',
           },
         });
         const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('AI generation timed out')), 8000)
+          setTimeout(() => reject(new Error('AI generation timed out')), 15000)
         );
         const response = await Promise.race([aiCall, timeoutPromise]);
 
