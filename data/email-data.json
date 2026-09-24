@@ -39,31 +39,51 @@
           "schema": "JSON",
           "type": "Image",
           "name": "Avatar",
-          "path": ["entry", 0, "thumbnailUrl"]
+          "path": [
+            "entry",
+            0,
+            "thumbnailUrl"
+          ]
         },
         {
           "schema": "JSON",
           "type": "String",
           "name": "Name",
-          "path": ["entry", 0, "displayName"]
+          "path": [
+            "entry",
+            0,
+            "displayName"
+          ]
         },
         {
           "schema": "JSON",
           "type": "String",
           "name": "Username",
-          "path": ["entry", 0, "preferredUsername"]
+          "path": [
+            "entry",
+            0,
+            "preferredUsername"
+          ]
         },
         {
           "schema": "JSON",
           "type": "String",
           "name": "About",
-          "path": ["entry", 0, "aboutMe"]
+          "path": [
+            "entry",
+            0,
+            "aboutMe"
+          ]
         },
         {
           "schema": "JSON",
           "type": "String",
           "name": "Location",
-          "path": ["entry", 0, "currentLocation"]
+          "path": [
+            "entry",
+            0,
+            "currentLocation"
+          ]
         }
       ]
     },
@@ -109,19 +129,31 @@
           "schema": "JSON",
           "type": "String",
           "name": "Username",
-          "path": ["them", "basics", "username"]
+          "path": [
+            "them",
+            "basics",
+            "username"
+          ]
         },
         {
           "schema": "JSON",
           "type": "String",
           "name": "Bio",
-          "path": ["them", "profile", "bio"]
+          "path": [
+            "them",
+            "profile",
+            "bio"
+          ]
         },
         {
           "schema": "JSON",
           "type": "String",
           "name": "Location",
-          "path": ["them", "profile", "location"]
+          "path": [
+            "them",
+            "profile",
+            "location"
+          ]
         }
       ]
     },
@@ -145,13 +177,21 @@
           "schema": "JSON",
           "type": "String",
           "name": "Login",
-          "path": ["items", 0, "login"]
+          "path": [
+            "items",
+            0,
+            "login"
+          ]
         },
         {
           "schema": "JSON",
           "type": "Image",
           "name": "Avatar",
-          "path": ["items", 0, "avatar_url"]
+          "path": [
+            "items",
+            0,
+            "avatar_url"
+          ]
         }
       ]
     },
@@ -189,19 +229,28 @@
           "schema": "JSON",
           "type": "String",
           "name": "Username",
-          "path": [0, "username"]
+          "path": [
+            0,
+            "username"
+          ]
         },
         {
           "schema": "JSON",
           "type": "String",
           "name": "Name",
-          "path": [0, "name"]
+          "path": [
+            0,
+            "name"
+          ]
         },
         {
           "schema": "JSON",
           "type": "Image",
           "name": "Avatar",
-          "path": [0, "avatar_url"]
+          "path": [
+            0,
+            "avatar_url"
+          ]
         }
       ]
     },
@@ -251,19 +300,31 @@
           "schema": "JSON",
           "type": "String",
           "name": "Username",
-          "path": ["users", 0, "username"]
+          "path": [
+            "users",
+            0,
+            "username"
+          ]
         },
         {
           "schema": "JSON",
           "type": "String",
           "name": "Name",
-          "path": ["users", 0, "name"]
+          "path": [
+            "users",
+            0,
+            "name"
+          ]
         },
         {
           "schema": "JSON",
           "type": "Image",
           "name": "Avatar",
-          "path": ["users", 0, "picture"]
+          "path": [
+            "users",
+            0,
+            "picture"
+          ]
         }
       ]
     },
@@ -695,6 +756,20 @@
       "cat": "xx NSFW xx",
       "input_operation": "raw-email",
       "profile_url": "https://www.pornhub.com"
+    },
+    {
+      "name": "Entry (엔트리 계정)",
+      "uri_check": "https://playentry.org/profile/{account}",
+      "profile_url": "https://playentry.org/profile/{account}",
+      "input_operation": "raw-email",
+      "e_code": 200,
+      "e_string": "",
+      "m_string": "",
+      "m_code": 404,
+      "known": [
+        "help@playentry.org"
+      ],
+      "cat": "coding"
     }
   ]
 }

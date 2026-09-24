@@ -87,6 +87,57 @@ function getRandomSplash(): string {
 }
 
 // -------------------------------------------------------------
+// Entry (엔트리 - playentry.org) Custom High-Precision Probe
+// -------------------------------------------------------------
+let cachedEntryCsrf: { secret: string; token: string; time: number } | null = null;
+
+async function probeEntryCustom(query: string, isEmail: boolean): Promise<boolean> {
+  try {
+    if (!cachedEntryCsrf || Date.now() - cachedEntryCsrf.time > 300000) {
+      const csrfRes = await fetch('https://playentry.org', {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        },
+      });
+      const cookie = csrfRes.headers.get('set-cookie');
+      const secret = cookie?.match(/_csrf=([^;]+)/)?.[1];
+      if (secret) {
+        const salt = crypto.randomBytes(8).toString('base64url').slice(0, 8);
+        const hash = crypto.createHash('sha1').update(`${salt}-${secret}`).digest('base64url');
+        cachedEntryCsrf = { secret, token: `${salt}-${hash}`, time: Date.now() };
+      }
+    }
+
+    if (!cachedEntryCsrf) return false;
+
+    const bodyQuery = isEmail
+      ? 'query CHECK_EXISTS_EMAIL($email: String) { existsUser(email: $email) { exists } }'
+      : 'query CHECK_EXISTS_USERNAME($username: String) { existsUser(username: $username) { exists } }';
+
+    const variables = isEmail ? { email: query } : { username: query };
+
+    const res = await fetch('https://playentry.org/graphql', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        Cookie: `_csrf=${cachedEntryCsrf.secret}`,
+        'x-csrf-token': cachedEntryCsrf.token,
+        'csrf-token': cachedEntryCsrf.token,
+      },
+      body: JSON.stringify({ query: bodyQuery, variables }),
+    });
+
+    const json: any = await res.json().catch(() => null);
+    return Boolean(json?.data?.existsUser?.exists);
+  } catch {
+    return false;
+  }
+}
+
+// -------------------------------------------------------------
 // 120 Famous Email Providers for Octopus Multi-Domain Expansion
 // -------------------------------------------------------------
 export interface FamousEmailDomain {
@@ -605,6 +656,16 @@ app.get('/api/search/stream', async (req: Request, res: Response) => {
     }));
   }
 
+  // Prioritize high-value Korean & major global platforms so they probe first and aren't cut off by site limits
+  const priorityKeywords = ['entry', '엔트리', 'velog', 'naver', 'tistory', 'codeup', 'geeknews', 'soop', 'op.gg', 'chzzk', 'kakao', 'github'];
+  targets.sort((a, b) => {
+    const aName = a.site.name.toLowerCase();
+    const bName = b.site.name.toLowerCase();
+    const aPriority = priorityKeywords.some(k => aName.includes(k)) ? 1 : 0;
+    const bPriority = priorityKeywords.some(k => bName.includes(k)) ? 1 : 0;
+    return bPriority - aPriority;
+  });
+
   if (siteLimit > 0 && targets.length > siteLimit) {
     targets = targets.slice(0, siteLimit);
   }
@@ -628,6 +689,37 @@ app.get('/api/search/stream', async (req: Request, res: Response) => {
     const { site, query: activeQuery, detectionType, pivotEmail } = targetItem;
     let targetUrl = site.uri_check;
     let formattedAccount = activeQuery;
+
+    // Custom check for Entry (엔트리 - playentry.org)
+    if (site.name.toLowerCase().includes('entry') || site.name.includes('엔트리')) {
+      const isEmail = site.input_operation === 'raw-email' || activeQuery.includes('@');
+      const cleanTarget = activeQuery.trim();
+      const tStart = Date.now();
+      const found = await probeEntryCustom(cleanTarget, isEmail);
+      if (found) {
+        const usernameOnly = cleanTarget.includes('@') ? cleanTarget.split('@')[0] : cleanTarget;
+        const profileUrl = site.profile_url
+          ? site.profile_url.replace(/\{account\}/g, encodeURIComponent(usernameOnly))
+          : `https://playentry.org/profile/${encodeURIComponent(usernameOnly)}`;
+        return {
+          name: site.name,
+          url: profileUrl,
+          category: site.cat || 'coding',
+          status: 'FOUND',
+          metadata: [
+            {
+              name: 'platform',
+              type: 'String',
+              value: 'Playentry (엔트리 공식 계정 인증)',
+            },
+          ],
+          responseTimeMs: Date.now() - tStart,
+          detectionType,
+          pivotEmail,
+        };
+      }
+      return null;
+    }
 
     // Apply input transformations
     if (site.input_operation === 'hash-sha256') {
@@ -777,16 +869,6 @@ app.get('/api/search/stream', async (req: Request, res: Response) => {
           lowerText.includes('404 not found')
         ) {
           isFound = false;
-        }
-      }
-
-      // Check known false positives
-      if (site.known && Array.isArray(site.known)) {
-        for (const knownString of site.known) {
-          if (textContent.includes(knownString)) {
-            isFound = false;
-            break;
-          }
         }
       }
 
