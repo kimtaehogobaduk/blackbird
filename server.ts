@@ -238,7 +238,7 @@ async function probeEmailDomainIdentity(
   const md5 = crypto.createHash('md5').update(candidateEmail).digest('hex');
 
   const ctrl = new AbortController();
-  const probeTimeout = setTimeout(() => ctrl.abort(), 1500);
+  const probeTimeout = setTimeout(() => ctrl.abort(), 1800);
 
   // A. Naver (Korea #1): allocates blog PostList with var mylogURL for registered members
   const naverPromise = (d.domain === 'naver.com')
@@ -249,7 +249,7 @@ async function probeEmailDomainIdentity(
         .then(async (res) => {
           if (res.status === 200) {
             const body = await res.text();
-            if (body.includes('var mylogURL')) {
+            if (body.includes('var mylogURL') && !body.includes('블로그를 찾을 수 없습니다')) {
               return { signal: 'Naver Platform Registered User' };
             }
           }
@@ -259,7 +259,7 @@ async function probeEmailDomainIdentity(
     : Promise.resolve(null);
 
   // B. Kakao Brunch (Korea #1 Writer/Essay platform)
-  const brunchPromise = (d.domain === 'daum.net' || d.domain === 'kakao.com' || d.domain === 'hanmail.net')
+  const brunchPromise = (d.domain === 'kakao.com')
     ? fetch(`https://brunch.co.kr/@${encodeURIComponent(handle)}`, {
         headers: { 'User-Agent': getRandomUserAgent() },
         signal: ctrl.signal,
@@ -267,7 +267,7 @@ async function probeEmailDomainIdentity(
         .then(async (res) => {
           if (res.status === 200) {
             const body = await res.text();
-            if (body.includes('작가소개') || body.includes('brunch')) {
+            if (body.includes('작가소개')) {
               return { signal: 'Kakao Brunch Registered Author' };
             }
           }
@@ -276,53 +276,33 @@ async function probeEmailDomainIdentity(
         .catch(() => null)
     : Promise.resolve(null);
 
-  // C. Ubuntu OpenPGP Global Keyserver (Official Cryptographic Email Record)
-  const openPgpPromise = fetch(
-    `https://keyserver.ubuntu.com/pks/lookup?op=get&search=${encodeURIComponent(candidateEmail)}`,
-    {
-      headers: { 'User-Agent': getRandomUserAgent() },
-      signal: ctrl.signal,
-    }
-  )
-    .then((res) => {
-      if (res.status === 200) {
-        return { signal: 'OpenPGP Verified Cryptographic Key' };
-      }
-      return null;
-    })
-    .catch(() => null);
+  // C. Ubuntu OpenPGP Global Keyserver (Official Cryptographic Email Record for candidate email)
+  const isGlobalOrTarget = Boolean(
+    isExactTarget ||
+    d.category === 'Global Giant' ||
+    d.category === 'Secure & Privacy' ||
+    d.domain === 'gmail.com' ||
+    d.domain === 'outlook.com' ||
+    d.domain === 'proton.me' ||
+    d.domain === 'protonmail.com' ||
+    d.domain === 'yahoo.com' ||
+    d.domain === 'icloud.com' ||
+    d.domain === 'tuta.com'
+  );
 
-  // D. Keybase Global Cryptographic Identity
-  const keybasePromise = fetch(
-    `https://keybase.io/_/api/1.0/user/lookup.json?usernames=${encodeURIComponent(handle)}`,
-    {
-      headers: { 'User-Agent': getRandomUserAgent() },
-      signal: ctrl.signal,
-    }
-  )
-    .then(async (res) => {
-      if (res.status === 200) {
-        const kData = await res.json().catch(() => null);
-        if (kData?.status?.name === 'OK' && kData?.them?.[0]) {
-          const avatar = kData.them[0]?.pictures?.primary?.url;
-          return { signal: 'Keybase Cryptographic Identity', avatar };
+  const openPgpPromise = isGlobalOrTarget
+    ? fetch(
+        `https://keyserver.ubuntu.com/pks/lookup?op=get&search=${encodeURIComponent(candidateEmail)}`,
+        {
+          headers: { 'User-Agent': getRandomUserAgent() },
+          signal: ctrl.signal,
         }
-      }
-      return null;
-    })
-    .catch(() => null);
-
-  // E. GitHub Official Public User API
-  const githubPromise = (d.domain === 'gmail.com' || d.domain === 'outlook.com' || d.domain === 'naver.com' || d.domain.includes('github'))
-    ? fetch(`https://api.github.com/users/${encodeURIComponent(handle)}`, {
-        headers: { 'User-Agent': getRandomUserAgent() },
-        signal: ctrl.signal,
-      })
+      )
         .then(async (res) => {
           if (res.status === 200) {
-            const ghData = await res.json().catch(() => null);
-            if (ghData?.id) {
-              return { signal: 'GitHub Verified Account', avatar: ghData.avatar_url };
+            const txt = await res.text();
+            if (txt.includes('BEGIN PGP PUBLIC KEY BLOCK')) {
+              return { signal: 'OpenPGP Verified Public Key' };
             }
           }
           return null;
@@ -330,39 +310,7 @@ async function probeEmailDomainIdentity(
         .catch(() => null)
     : Promise.resolve(null);
 
-  // F. Qiita (Japan #1 Tech & Dev Community)
-  const qiitaPromise = (d.domain.includes('.jp') || d.domain === 'yahoo.co.jp' || d.domain === 'gmail.com')
-    ? fetch(`https://qiita.com/api/v2/users/${encodeURIComponent(handle)}`, {
-        headers: { 'User-Agent': getRandomUserAgent() },
-        signal: ctrl.signal,
-      })
-        .then(async (res) => {
-          if (res.status === 200) {
-            const qData = await res.json().catch(() => null);
-            return { signal: 'Qiita Japan Verified Developer', avatar: qData?.profile_image_url };
-          }
-          return null;
-        })
-        .catch(() => null)
-    : Promise.resolve(null);
-
-  // G. Note.com (Japan #1 Creator/Media Platform)
-  const notePromise = (d.domain.includes('.jp') || d.domain === 'yahoo.co.jp' || d.domain === 'gmail.com')
-    ? fetch(`https://note.com/api/v2/creators/${encodeURIComponent(handle)}`, {
-        headers: { 'User-Agent': getRandomUserAgent() },
-        signal: ctrl.signal,
-      })
-        .then(async (res) => {
-          if (res.status === 200) {
-            const nData = await res.json().catch(() => null);
-            return { signal: 'Note.com Japan Verified Creator', avatar: nData?.data?.user?.profileImageUrl };
-          }
-          return null;
-        })
-        .catch(() => null)
-    : Promise.resolve(null);
-
-  // H. Gravatar Profile JSON
+  // D. Gravatar Profile JSON (SHA256 hash of exact candidate email)
   const gravatarProfilePromise = fetch(`https://gravatar.com/${sha256}.json`, {
     headers: { 'User-Agent': getRandomUserAgent() },
     signal: ctrl.signal,
@@ -381,7 +329,7 @@ async function probeEmailDomainIdentity(
     })
     .catch(() => null);
 
-  // I. Gravatar Avatar HEAD
+  // E. Gravatar Avatar HEAD (MD5 hash of exact candidate email)
   const gravatarAvatarPromise = fetch(`https://www.gravatar.com/avatar/${md5}?d=404`, {
     method: 'HEAD',
     headers: { 'User-Agent': getRandomUserAgent() },
@@ -398,45 +346,18 @@ async function probeEmailDomainIdentity(
     })
     .catch(() => null);
 
-  // J. Libravatar HEAD
-  const libravatarPromise = fetch(`https://seccdn.libravatar.org/avatar/${md5}?d=404`, {
-    method: 'HEAD',
-    headers: { 'User-Agent': getRandomUserAgent() },
-    signal: ctrl.signal,
-  })
-    .then((res) => {
-      if (res.status === 200) {
-        return {
-          signal: 'Libravatar Public Identity',
-          avatar: `https://seccdn.libravatar.org/avatar/${md5}`,
-        };
-      }
-      return null;
-    })
-    .catch(() => null);
-
   const [
     naverRes,
     brunchRes,
     openPgpRes,
-    keybaseRes,
-    githubRes,
-    qiitaRes,
-    noteRes,
     profileRes,
     avatarRes,
-    libraRes,
   ] = await Promise.all([
     naverPromise,
     brunchPromise,
     openPgpPromise,
-    keybasePromise,
-    githubPromise,
-    qiitaPromise,
-    notePromise,
     gravatarProfilePromise,
     gravatarAvatarPromise,
-    libravatarPromise,
   ]);
   clearTimeout(probeTimeout);
 
@@ -444,13 +365,8 @@ async function probeEmailDomainIdentity(
     naverRes,
     brunchRes,
     openPgpRes,
-    keybaseRes,
-    githubRes,
-    qiitaRes,
-    noteRes,
     profileRes,
     avatarRes,
-    libraRes,
   ];
 
   for (const r of candidateResults) {
@@ -475,6 +391,7 @@ async function probeEmailDomainIdentity(
     email: candidateEmail,
     status: 'VERIFIED',
     providerName: d.name,
+    category: d.category,
     avatarUrl,
     signals: identityProofs,
     responseTimeMs,
@@ -1121,28 +1038,88 @@ Provide an objective intelligence assessment with the following JSON schema:
   ]
 }`;
 
-        const aiCall = ai.models.generateContent({
-          model: 'gemini-3.8-flash',
-          contents: prompt,
-          config: {
-            responseMimeType: 'application/json',
-          },
-        });
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('AI generation timed out')), 15000)
-        );
-        const response = await Promise.race([aiCall, timeoutPromise]);
+        // Multi-tier resilient Gemini call: ultra-fast REST gemini-2.5-flash primary -> SDK fallback -> heuristic engine
+        const aiCall = (async () => {
+          // 1. Direct high-speed REST fetch with gemini-2.5-flash (fastest and most reliable in container network)
+          try {
+            const restCtrl = new AbortController();
+            const restTimeout = setTimeout(() => restCtrl.abort(), 9000);
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+            const restRes = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              signal: restCtrl.signal,
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { responseMimeType: 'application/json' },
+              }),
+            });
+            clearTimeout(restTimeout);
+            if (restRes.ok) {
+              const data = (await restRes.json()) as any;
+              const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (text) return text;
+            }
+          } catch {
+            // ignore and fallback
+          }
 
-        if (response.text) {
-          let cleaned = response.text.trim();
+          // 2. Direct high-speed REST fetch with gemini-3.1-flash-lite (verified active and fast fallback)
+          try {
+            const restCtrl = new AbortController();
+            const restTimeout = setTimeout(() => restCtrl.abort(), 9000);
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`;
+            const restRes = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              signal: restCtrl.signal,
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { responseMimeType: 'application/json' },
+              }),
+            });
+            clearTimeout(restTimeout);
+            if (restRes.ok) {
+              const data = (await restRes.json()) as any;
+              const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (text) return text;
+            }
+          } catch {
+            // ignore and fallback
+          }
+
+          // 3. SDK call fallback
+          try {
+            const res = await ai.models.generateContent({
+              model: 'gemini-2.5-flash',
+              contents: prompt,
+              config: {
+                responseMimeType: 'application/json',
+              },
+            });
+            if (res.text) return res.text;
+          } catch {
+            // ignore
+          }
+
+          throw new Error('All AI endpoints unavailable');
+        })();
+
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('AI generation timed out')), 20000)
+        );
+        const resultText = await Promise.race([aiCall, timeoutPromise]);
+
+        if (resultText) {
+          let cleaned = resultText.trim();
           if (cleaned.startsWith('```')) {
             cleaned = cleaned.replace(/^```[a-z]*\s*/i, '').replace(/\s*```$/, '').trim();
           }
           const parsed = JSON.parse(cleaned) as AiProfileAnalysis;
           return res.json({ success: true, profile: parsed });
         }
-      } catch (geminiError) {
-        console.warn('Gemini API call failed, falling back to heuristic engine:', geminiError);
+      } catch (geminiError: any) {
+        console.warn('Gemini API call returned error or timed out, activating heuristic OSINT engine:', geminiError?.message || geminiError);
       }
     }
 

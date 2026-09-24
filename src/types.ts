@@ -22,6 +22,7 @@ export interface OctopusDomainNode {
   email: string;
   status: 'VERIFIED' | 'ROUTABLE' | 'DISCOVERED' | 'CHECKING' | 'NOT_FOUND';
   providerName?: string;
+  category?: string;
   avatarUrl?: string;
   signals?: string[];
   responseTimeMs?: number;

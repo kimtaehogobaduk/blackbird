@@ -72,8 +72,19 @@ export const OctopusDomainPanel: React.FC<OctopusDomainPanelProps> = ({
   const verifiedCount = verifiedNodes.length;
 
   const filteredNodes = verifiedNodes.filter((node) => {
-    if (activeTab === 'korea') return domainCategories[node.domain] === 'korea';
-    if (activeTab === 'global') return domainCategories[node.domain] === 'global' || domainCategories[node.domain] === 'privacy';
+    if (activeTab === 'korea') {
+      const cat = node.category?.toLowerCase() || '';
+      return cat.includes('korea') || domainCategories[node.domain] === 'korea';
+    }
+    if (activeTab === 'global') {
+      const cat = node.category?.toLowerCase() || '';
+      return (
+        cat.includes('global') ||
+        cat.includes('privacy') ||
+        domainCategories[node.domain] === 'global' ||
+        domainCategories[node.domain] === 'privacy'
+      );
+    }
     return true;
   });
 
