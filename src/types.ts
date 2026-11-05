@@ -33,6 +33,7 @@ export interface OctopusDomainNode {
 export interface SearchSiteConfig {
   name: string;
   uri_check: string;
+  uri_pretty?: string;
   e_code?: number;
   e_string?: string;
   m_code?: number;
@@ -51,7 +52,7 @@ export interface SearchSiteConfig {
 export interface SearchProgressEvent {
   type: 'init' | 'progress' | 'found' | 'complete' | 'error' | 'octopus_init' | 'octopus_found' | 'octopus_progress';
   query?: string;
-  searchType?: 'username' | 'email';
+  searchType?: 'username' | 'email' | 'unified';
   totalSites?: number;
   completed?: number;
   currentSite?: string;

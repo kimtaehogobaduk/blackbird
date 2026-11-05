@@ -13,8 +13,11 @@ interface AboutModalProps {
   };
 }
 
-export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
+export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose, stats }) => {
   if (!isOpen) return null;
+
+  const totalPlatforms = (stats?.totalUsernameSites || 807) + (stats?.totalEmailSites || 41);
+  const famousDomainsCount = stats?.totalFamousDomains || 120;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-200">
@@ -49,21 +52,21 @@ export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
               <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
               <div>
                 <span className="font-bold text-slate-900">High-Concurrency Scanning:</span>
-                <span className="text-slate-600 ml-1">Simultaneous multi-threaded HTTP probing across 750+ digital platforms with zero head-of-line blocking.</span>
+                <span className="text-slate-600 ml-1">Simultaneous multi-threaded HTTP probing across {totalPlatforms}+ verified digital platform nodes with zero head-of-line blocking.</span>
               </div>
             </div>
             <div className="flex items-start space-x-2">
               <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
               <div>
-                <span className="font-bold text-slate-900">Email Reverse Trace Engine:</span>
-                <span className="text-slate-600 ml-1">Comprehensive 40+ direct platform signatures plus automated handle pivot correlation.</span>
+                <span className="font-bold text-slate-900">Octopus Multi-Domain Expansion:</span>
+                <span className="text-slate-600 ml-1">Comprehensive probing across {famousDomainsCount} major email provider networks plus automated handle pivot correlation.</span>
               </div>
             </div>
             <div className="flex items-start space-x-2">
               <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
               <div>
-                <span className="font-bold text-slate-900">AI Intelligence Profiler:</span>
-                <span className="text-slate-600 ml-1">Deep behavioral synthesis, cluster classification, and privacy risk indexing powered by server-side Gemini 2.5.</span>
+                <span className="font-bold text-slate-900">AI Behavioral Intelligence:</span>
+                <span className="text-slate-600 ml-1">Deep behavioral synthesis, cluster classification, and privacy risk indexing powered by Gemini AI.</span>
               </div>
             </div>
           </div>

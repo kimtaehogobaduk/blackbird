@@ -25,7 +25,7 @@ export default function App() {
 
   // Search State
   const [activeQuery, setActiveQuery] = useState('');
-  const [searchType, setSearchType] = useState<'username' | 'email'>('username');
+  const [searchType, setSearchType] = useState<'unified' | 'username' | 'email'>('unified');
   const [isScanning, setIsScanning] = useState(false);
   const [completed, setCompleted] = useState(0);
   const [totalSites, setTotalSites] = useState(0);
@@ -77,21 +77,21 @@ export default function App() {
     setIsScanning(false);
   };
 
-  const triggerAiAnalysis = async (accounts: FoundAccount[], query: string, type: 'username' | 'email') => {
+  const triggerAiAnalysis = async (accounts: FoundAccount[], query: string, type: 'unified' | 'username' | 'email') => {
     if (accounts.length === 0) return;
     setIsAnalyzingAi(true);
     setAiAnalysisError(null);
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 25000);
+      const timeoutId = setTimeout(() => controller.abort(), 45000);
 
       const res = await fetch('/api/ai/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
         body: JSON.stringify({
-          [type]: query,
+          [type === 'unified' ? (query.includes('@') ? 'email' : 'username') : type]: query,
           foundAccounts: accounts,
         }),
       });
@@ -120,7 +120,7 @@ export default function App() {
 
   const handleStartSearch = (params: {
     query: string;
-    type: 'username' | 'email';
+    type: 'unified' | 'username' | 'email';
     category: string;
     noNsfw: boolean;
     concurrency: number;
@@ -255,7 +255,11 @@ export default function App() {
           onStop={stopSearch}
           isScanning={isScanning}
           categories={
-            searchType === 'username' ? stats.usernameCategories : stats.emailCategories
+            searchType === 'username'
+              ? stats.usernameCategories
+              : searchType === 'email'
+              ? stats.emailCategories
+              : Array.from(new Set([...(stats.usernameCategories || []), ...(stats.emailCategories || [])]))
           }
         />
 
@@ -379,10 +383,10 @@ export default function App() {
                 <Network className="w-5 h-5" />
               </div>
               <h3 className="text-sm font-mono font-bold text-slate-900">
-                750+ Verified Platform Nodes
+                {(stats.totalUsernameSites || 807) + (stats.totalEmailSites || 41)}+ Verified Platform Nodes
               </h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Asynchronous enumeration across 717+ username services and 40+ direct email services with sub-second parallel HTTP probing.
+                Asynchronous enumeration across {stats.totalUsernameSites || 807}+ username services and {stats.totalEmailSites || 41}+ direct email services with sub-second parallel HTTP probing.
               </p>
             </div>
 
@@ -394,7 +398,7 @@ export default function App() {
                 Octopus Multi-Domain Expansion
               </h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Evaluates handle prefixes across 50 renowned mail providers (Naver, Gmail, Daum, Kakao, Outlook, Proton, etc.) and branches out multi-vector discovery.
+                Evaluates handle prefixes across {stats.totalFamousDomains || 120} renowned mail providers (Naver, Gmail, Daum, Kakao, Outlook, Proton, etc.) and branches out multi-vector discovery.
               </p>
             </div>
 
@@ -403,7 +407,7 @@ export default function App() {
                 <Sparkles className="w-5 h-5" />
               </div>
               <h3 className="text-sm font-mono font-bold text-slate-900">
-                Gemini 2.5 AI Profiling
+                Gemini AI Profiling Engine
               </h3>
               <p className="text-xs text-slate-600 leading-relaxed">
                 Synthesizes discovered account categories and metadata into behavioral dossiers, exposure risk scores, and digital footprint analysis.

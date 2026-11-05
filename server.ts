@@ -4,8 +4,14 @@ import fs from 'fs';
 import crypto from 'crypto';
 import dns from 'dns';
 import { createServer as createViteServer } from 'vite';
-import { GoogleGenAI } from '@google/genai';
+import { fileURLToPath } from 'url';
+import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import { FoundAccount, ExtractedMetadata, SearchSiteConfig, AiProfileAnalysis, OctopusDomainNode } from './src/types.js';
+
+// Universal directory resolution compatible with both ESM (dev) and CJS (production bundle)
+const safeDir = typeof __dirname !== 'undefined'
+  ? __dirname
+  : (typeof import.meta !== 'undefined' && (import.meta as any).url ? path.dirname(fileURLToPath((import.meta as any).url)) : process.cwd());
 
 // Prioritize IPv4 DNS resolution to prevent container IPv6 timeouts
 try {
@@ -14,13 +20,41 @@ try {
   // Ignored if older Node runtime
 }
 
-const app = express();
-const PORT = 3000;
+const args = process.argv.slice(2);
+let portArg = 3000;
+let hostArg = '0.0.0.0';
 
+for (let i = 0; i < args.length; i++) {
+  if (args[i] === '--port' && args[i + 1]) {
+    portArg = parseInt(args[i + 1], 10);
+  }
+  if (args[i] === '--host' && args[i + 1]) {
+    hostArg = args[i + 1];
+  }
+}
+
+const PORT = Number(process.env.PORT) || portArg || 3000;
+const HOST = process.env.HOST || hostArg || '0.0.0.0';
+
+const app = express();
 app.use(express.json());
 
 // Load data files safely
-const dataDir = path.join(process.cwd(), 'data');
+function findDataDir(): string {
+  const candidates = [
+    path.join(process.cwd(), 'data'),
+    path.resolve('data'),
+    path.join(safeDir, 'data'),
+    path.join(safeDir, '../data'),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(path.join(c, 'wmn-data.json'))) {
+      return c;
+    }
+  }
+  return path.join(process.cwd(), 'data');
+}
+const dataDir = findDataDir();
 let usernameSites: SearchSiteConfig[] = [];
 let emailSites: SearchSiteConfig[] = [];
 let metadataRules: Record<string, any[]> = {};
@@ -28,6 +62,385 @@ let userAgents: string[] = [
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   'Mozilla/5.0 (X11; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0',
+];
+
+const additionalCoreSites: SearchSiteConfig[] = [
+  {
+    name: 'OP.GG (리그 오브 레전드)',
+    uri_check: 'https://op.gg/lol/summoners/kr/{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'gaming',
+    profile_url: 'https://op.gg/lol/summoners/kr/{account}',
+  },
+  {
+    name: 'FOW.KR (포우 LOL 전적)',
+    uri_check: 'https://www.fow.lol/find/kr/{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'gaming',
+    profile_url: 'https://www.fow.lol/find/kr/{account}',
+  },
+  {
+    name: 'Minecraft (마인크래프트 공식)',
+    uri_check: 'https://api.mojang.com/users/profiles/minecraft/{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'gaming',
+    profile_url: 'https://namemc.com/profile/{account}',
+  },
+  {
+    name: 'Roblox (로블록스)',
+    uri_check: 'https://users.roblox.com/v1/usernames/users',
+    e_code: 200,
+    m_code: 404,
+    cat: 'gaming',
+    profile_url: 'https://www.roblox.com/search/users?keyword={account}',
+  },
+  {
+    name: 'Steam Community (스팀)',
+    uri_check: 'https://steamcommunity.com/id/{account}',
+    e_code: 200,
+    m_string: 'The specified profile could not be found',
+    cat: 'gaming',
+    profile_url: 'https://steamcommunity.com/id/{account}',
+  },
+  {
+    name: 'Chess.com',
+    uri_check: 'https://api.chess.com/pub/player/{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'gaming',
+    profile_url: 'https://www.chess.com/member/{account}',
+  },
+  {
+    name: 'Playentry (엔트리)',
+    uri_check: 'https://playentry.org/profile/{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'coding',
+    profile_url: 'https://playentry.org/profile/{account}',
+  },
+  {
+    name: 'Naver Blog (네이버 블로그)',
+    uri_check: 'https://blog.naver.com/{account}',
+    e_code: 200,
+    m_string: '블로그를 찾을 수 없습니다',
+    cat: 'blog',
+    profile_url: 'https://blog.naver.com/{account}',
+  },
+  {
+    name: 'Velog (벨로그)',
+    uri_check: 'https://velog.io/@{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'blog',
+    profile_url: 'https://velog.io/@{account}',
+  },
+  {
+    name: 'Tistory (티스토리)',
+    uri_check: 'https://{account}.tistory.com',
+    e_code: 200,
+    m_code: 404,
+    cat: 'blog',
+    profile_url: 'https://{account}.tistory.com',
+  },
+  {
+    name: 'Kakao Brunch (브런치스토리)',
+    uri_check: 'https://brunch.co.kr/@{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'blog',
+    profile_url: 'https://brunch.co.kr/@{account}',
+  },
+  {
+    name: 'Baekjoon Online Judge (백준 BOJ)',
+    uri_check: 'https://www.acmicpc.net/user/{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'coding',
+    profile_url: 'https://www.acmicpc.net/user/{account}',
+  },
+  {
+    name: 'solved.ac (솔브드)',
+    uri_check: 'https://solved.ac/profile/{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'coding',
+    profile_url: 'https://solved.ac/profile/{account}',
+  },
+  {
+    name: 'Programmers (프로그래머스)',
+    uri_check: 'https://programmers.co.kr/users/{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'coding',
+    profile_url: 'https://programmers.co.kr/users/{account}',
+  },
+  {
+    name: 'Inflearn (인프런)',
+    uri_check: 'https://www.inflearn.com/users/{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'coding',
+    profile_url: 'https://www.inflearn.com/users/{account}',
+  },
+  {
+    name: 'Wanted (원티드)',
+    uri_check: 'https://www.wanted.co.kr/profile/{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'business',
+    profile_url: 'https://www.wanted.co.kr/profile/{account}',
+  },
+  {
+    name: 'Remember (리멤버)',
+    uri_check: 'https://career.rememberapp.co.kr/profile/{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'business',
+    profile_url: 'https://career.rememberapp.co.kr/profile/{account}',
+  },
+  {
+    name: 'Watcha Pedia (왓챠피디아)',
+    uri_check: 'https://pedia.watcha.com/ko-KR/users/{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'entertainment',
+    profile_url: 'https://pedia.watcha.com/ko-KR/users/{account}',
+  },
+  {
+    name: 'Maple.gg (메이플지지)',
+    uri_check: 'https://maple.gg/u/{account}',
+    e_code: 200,
+    m_string: '검색결과가 없습니다',
+    cat: 'gaming',
+    profile_url: 'https://maple.gg/u/{account}',
+  },
+  {
+    name: 'DAK.GG PUBG (배틀그라운드)',
+    uri_check: 'https://dak.gg/pubg/profile/{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'gaming',
+    profile_url: 'https://dak.gg/pubg/profile/{account}',
+  },
+  {
+    name: 'Tracker.gg (Valorant)',
+    uri_check: 'https://tracker.gg/valorant/profile/riot/{account}/overview',
+    e_code: 200,
+    m_code: 404,
+    cat: 'gaming',
+    profile_url: 'https://tracker.gg/valorant/profile/riot/{account}/overview',
+  },
+  {
+    name: 'Battle.net (오버워치)',
+    uri_check: 'https://overwatch.blizzard.com/ko-kr/career/{account}/',
+    e_code: 200,
+    m_code: 404,
+    cat: 'gaming',
+    profile_url: 'https://overwatch.blizzard.com/ko-kr/career/{account}/',
+  },
+  {
+    name: 'Threads (스레드)',
+    uri_check: 'https://www.threads.net/@{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'social',
+    profile_url: 'https://www.threads.net/@{account}',
+  },
+  {
+    name: 'Bluesky (블루스카이)',
+    uri_check: 'https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor={account}.bsky.social',
+    e_code: 200,
+    m_code: 400,
+    cat: 'social',
+    profile_url: 'https://bsky.app/profile/{account}.bsky.social',
+  },
+  {
+    name: 'TikTok (틱톡)',
+    uri_check: 'https://www.tiktok.com/@{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'social',
+    profile_url: 'https://www.tiktok.com/@{account}',
+  },
+  {
+    name: 'Pinterest (핀터레스트)',
+    uri_check: 'https://www.pinterest.com/{account}/',
+    e_code: 200,
+    m_code: 404,
+    cat: 'social',
+    profile_url: 'https://www.pinterest.com/{account}/',
+  },
+  {
+    name: 'Notion (노션 퍼블릭)',
+    uri_check: 'https://{account}.notion.site',
+    e_code: 200,
+    m_code: 404,
+    cat: 'tech',
+    profile_url: 'https://{account}.notion.site',
+  },
+  {
+    name: 'Substack (서브스택)',
+    uri_check: 'https://{account}.substack.com',
+    e_code: 200,
+    m_code: 404,
+    cat: 'blog',
+    profile_url: 'https://{account}.substack.com',
+  },
+  {
+    name: 'Medium (미디엄)',
+    uri_check: 'https://medium.com/@{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'blog',
+    profile_url: 'https://medium.com/@{account}',
+  },
+  {
+    name: 'Discord (디스코드)',
+    uri_check: 'https://discord.com/users/{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'social',
+    profile_url: 'https://discord.com/users/{account}',
+  },
+  {
+    name: 'Telegram (텔레그램)',
+    uri_check: 'https://t.me/{account}',
+    e_code: 200,
+    m_string: 'tgme_page_extra',
+    cat: 'social',
+    profile_url: 'https://t.me/{account}',
+  },
+  {
+    name: 'Spotify (스포티파이)',
+    uri_check: 'https://open.spotify.com/user/{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'music',
+    profile_url: 'https://open.spotify.com/user/{account}',
+  },
+  {
+    name: 'SoundCloud (사운드클라우드)',
+    uri_check: 'https://soundcloud.com/{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'music',
+    profile_url: 'https://soundcloud.com/{account}',
+  },
+  {
+    name: 'GitLab (깃랩)',
+    uri_check: 'https://gitlab.com/{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'coding',
+    profile_url: 'https://gitlab.com/{account}',
+  },
+  {
+    name: 'Docker Hub (도커허브)',
+    uri_check: 'https://hub.docker.com/u/{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'coding',
+    profile_url: 'https://hub.docker.com/u/{account}',
+  },
+  {
+    name: 'NPM (엔피엠 개발자)',
+    uri_check: 'https://www.npmjs.com/~{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'coding',
+    profile_url: 'https://www.npmjs.com/~{account}',
+  },
+  {
+    name: 'ProductHunt (프로덕트헌트)',
+    uri_check: 'https://www.producthunt.com/@{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'tech',
+    profile_url: 'https://www.producthunt.com/@{account}',
+  },
+  {
+    name: 'BuyMeACoffee (후원 프로필)',
+    uri_check: 'https://www.buymeacoffee.com/{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'business',
+    profile_url: 'https://www.buymeacoffee.com/{account}',
+  },
+  {
+    name: 'Kaggle (캐글)',
+    uri_check: 'https://www.kaggle.com/{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'coding',
+    profile_url: 'https://www.kaggle.com/{account}',
+  },
+  {
+    name: 'Hugging Face (허깅페이스)',
+    uri_check: 'https://huggingface.co/{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'coding',
+    profile_url: 'https://huggingface.co/{account}',
+  },
+  {
+    name: 'LeetCode (리트코드)',
+    uri_check: 'https://leetcode.com/{account}/',
+    e_code: 200,
+    m_code: 404,
+    cat: 'coding',
+    profile_url: 'https://leetcode.com/{account}/',
+  },
+  {
+    name: 'GeekNews (긱뉴스)',
+    uri_check: 'https://news.hada.io/user?id={account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'news',
+    profile_url: 'https://news.hada.io/user?id={account}',
+  },
+  {
+    name: 'YouTube Channel (유튜브)',
+    uri_check: 'https://www.youtube.com/@{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'video',
+    profile_url: 'https://www.youtube.com/@{account}',
+  },
+  {
+    name: 'Twitch (트위치)',
+    uri_check: 'https://www.twitch.tv/{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'video',
+    profile_url: 'https://www.twitch.tv/{account}',
+  },
+  {
+    name: 'Band (네이버 밴드)',
+    uri_check: 'https://band.us/@{account}',
+    e_code: 200,
+    m_string: "bandNo: ''",
+    cat: 'social',
+    profile_url: 'https://band.us/@{account}',
+  },
+  {
+    name: 'Linktree (링크트리)',
+    uri_check: 'https://linktr.ee/{account}',
+    e_code: 200,
+    m_code: 404,
+    cat: 'social',
+    profile_url: 'https://linktr.ee/{account}',
+  },
+  {
+    name: 'Carrd (카드 프로필)',
+    uri_check: 'https://{account}.carrd.co',
+    e_code: 200,
+    m_code: 404,
+    cat: 'tech',
+    profile_url: 'https://{account}.carrd.co',
+  },
 ];
 
 try {
@@ -38,6 +451,13 @@ try {
   }
 } catch (e) {
   console.warn('Failed to load wmn-data.json:', e);
+}
+
+// Ensure additionalCoreSites are merged into usernameSites
+for (const extra of additionalCoreSites) {
+  if (!usernameSites.some(s => s.name.toLowerCase() === extra.name.toLowerCase())) {
+    usernameSites.unshift(extra);
+  }
 }
 
 try {
@@ -134,6 +554,276 @@ async function probeEntryCustom(query: string, isEmail: boolean): Promise<boolea
     return Boolean(json?.data?.existsUser?.exists);
   } catch {
     return false;
+  }
+}
+
+// -------------------------------------------------------------
+// Roblox (로블록스) Official API Probe
+// -------------------------------------------------------------
+async function probeRoblox(username: string): Promise<{ exists: boolean; id?: number; displayName?: string } | null> {
+  try {
+    const res = await fetch('https://users.roblox.com/v1/usernames/users', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      },
+      body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
+    });
+    if (!res.ok) return null;
+    const json: any = await res.json().catch(() => null);
+    if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+      const u = json.data[0];
+      return { exists: true, id: u.id, displayName: u.displayName };
+    }
+    return { exists: false };
+  } catch {
+    return null;
+  }
+}
+
+// -------------------------------------------------------------
+// GitHub Official REST API Custom Probe
+// -------------------------------------------------------------
+async function probeGitHubCustom(
+  username: string
+): Promise<{ exists: boolean; login?: string; avatarUrl?: string; name?: string; publicRepos?: number } | null> {
+  try {
+    const clean = username.trim();
+    if (!clean) return null;
+    const res = await fetch(`https://api.github.com/users/${encodeURIComponent(clean)}`, {
+      headers: {
+        'User-Agent': getRandomUserAgent(),
+        Accept: 'application/vnd.github.v3+json',
+      },
+    });
+    if (res.status === 200) {
+      const data = await res.json().catch(() => null);
+      if (data?.login) {
+        return {
+          exists: true,
+          login: data.login,
+          avatarUrl: data.avatar_url,
+          name: data.name || data.login,
+          publicRepos: data.public_repos,
+        };
+      }
+    }
+    return { exists: false };
+  } catch {
+    return null;
+  }
+}
+
+// -------------------------------------------------------------
+// GitLab Official REST API Custom Probe
+// -------------------------------------------------------------
+async function probeGitLabCustom(
+  username: string
+): Promise<{ exists: boolean; name?: string; webUrl?: string; avatarUrl?: string } | null> {
+  try {
+    const clean = username.trim();
+    if (!clean) return null;
+    const res = await fetch(`https://gitlab.com/api/v4/users?username=${encodeURIComponent(clean)}`, {
+      headers: {
+        'User-Agent': getRandomUserAgent(),
+      },
+    });
+    if (res.status === 200) {
+      const data = await res.json().catch(() => null);
+      if (Array.isArray(data) && data.length > 0) {
+        const u = data[0];
+        return {
+          exists: true,
+          name: u.name || u.username,
+          webUrl: u.web_url || `https://gitlab.com/${encodeURIComponent(clean)}`,
+          avatarUrl: u.avatar_url,
+        };
+      }
+    }
+    return { exists: false };
+  } catch {
+    return null;
+  }
+}
+
+// -------------------------------------------------------------
+// League of Legends (LoL / Riot Games) OP.GG Probe
+// -------------------------------------------------------------
+async function probeLolOpgg(
+  query: string
+): Promise<{ exists: boolean; profileUrl: string; summoner?: string } | null> {
+  try {
+    const clean = query.trim();
+    if (!clean) return null;
+    let tagCandidate = clean;
+    if (clean.includes('#')) {
+      tagCandidate = clean.replace('#', '-');
+    } else {
+      tagCandidate = `${clean}-KR1`;
+    }
+
+    const testUrl = `https://op.gg/lol/summoners/kr/${encodeURIComponent(tagCandidate)}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+    const res = await fetch(testUrl, {
+      headers: {
+        'User-Agent': getRandomUserAgent(),
+        'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8',
+      },
+      signal: controller.signal,
+      redirect: 'follow',
+    });
+    clearTimeout(timeoutId);
+
+    if (res.status === 200) {
+      const text = await res.text();
+      const titleMatch = text.match(/<title>([^<]+)<\/title>/i);
+      const title = titleMatch ? titleMatch[1].replace(' - Summoner stats - League of Legends', '').trim() : tagCandidate;
+      return {
+        exists: true,
+        profileUrl: `https://op.gg/lol/summoners/kr/${encodeURIComponent(tagCandidate)}`,
+        summoner: title,
+      };
+    }
+
+    if (!clean.includes('#')) {
+      const directUrl = `https://op.gg/lol/summoners/kr/${encodeURIComponent(clean)}`;
+      const c2 = new AbortController();
+      const t2 = setTimeout(() => c2.abort(), 3500);
+      const r2 = await fetch(directUrl, {
+        headers: {
+          'User-Agent': getRandomUserAgent(),
+          'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8',
+        },
+        signal: c2.signal,
+        redirect: 'follow',
+      });
+      clearTimeout(t2);
+      if (r2.status === 200) {
+        return {
+          exists: true,
+          profileUrl: directUrl,
+          summoner: clean,
+        };
+      }
+    }
+
+    return { exists: false, profileUrl: testUrl };
+  } catch {
+    return null;
+  }
+}
+
+// -------------------------------------------------------------
+// League of Legends FOW.KR / FOW.LOL Probe
+// -------------------------------------------------------------
+async function probeFowLol(
+  query: string
+): Promise<{ exists: boolean; profileUrl: string; tier?: string; summoner?: string } | null> {
+  try {
+    const clean = query.trim().replace('#', ' ');
+    if (!clean) return null;
+    const testUrl = `https://www.fow.lol/find/kr/${encodeURIComponent(clean)}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+    const res = await fetch(testUrl, {
+      headers: {
+        'User-Agent': getRandomUserAgent(),
+        'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8',
+      },
+      signal: controller.signal,
+      redirect: 'follow',
+    });
+    clearTimeout(timeoutId);
+
+    if (res.status === 200) {
+      const html = await res.text();
+      if (html.includes('tier_rank_box')) {
+        const match = html.match(/<DIV class='tier_rank_box[^']*'>([^<]+)<\/DIV>([^<]+)/i);
+        const tier = match ? match[1].trim() : undefined;
+        const summoner = match ? match[2].trim() : clean;
+        return {
+          exists: true,
+          profileUrl: testUrl,
+          tier,
+          summoner,
+        };
+      }
+    }
+    return { exists: false, profileUrl: testUrl };
+  } catch {
+    return null;
+  }
+}
+
+// -------------------------------------------------------------
+// Minecraft Mojang Official API Probe
+// -------------------------------------------------------------
+async function probeMinecraft(
+  username: string
+): Promise<{ exists: boolean; id?: string; name?: string } | null> {
+  try {
+    const clean = username.trim();
+    if (!clean || clean.length < 3 || clean.length > 16) return { exists: false };
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+    const res = await fetch(`https://api.mojang.com/users/profiles/minecraft/${encodeURIComponent(clean)}`, {
+      headers: {
+        'User-Agent': getRandomUserAgent(),
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (res.status === 200) {
+      const json: any = await res.json().catch(() => null);
+      if (json && json.id && json.name) {
+        return { exists: true, id: json.id, name: json.name };
+      }
+    }
+    return { exists: false };
+  } catch {
+    return null;
+  }
+}
+
+// -------------------------------------------------------------
+// Steam Community Profile Probe
+// -------------------------------------------------------------
+async function probeSteam(
+  account: string
+): Promise<{ exists: boolean; profileUrl: string; displayName?: string } | null> {
+  try {
+    const clean = account.trim();
+    if (!clean) return null;
+    const url = `https://steamcommunity.com/id/${encodeURIComponent(clean)}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': getRandomUserAgent(),
+      },
+      signal: controller.signal,
+      redirect: 'follow',
+    });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) return null;
+    const text = await res.text();
+    if (text.includes('The specified profile could not be found.')) return { exists: false, profileUrl: url };
+    const titleMatch = text.match(/<title>Steam Community :: ([^<]+)<\/title>/i);
+    if (titleMatch) {
+      return { exists: true, profileUrl: res.url, displayName: titleMatch[1].trim() };
+    }
+    return { exists: false, profileUrl: url };
+  } catch {
+    return null;
   }
 }
 
@@ -397,18 +1087,123 @@ async function probeEmailDomainIdentity(
     })
     .catch(() => null);
 
+  // F. Google / YouTube Public Handle & Profile Photo
+  const isGoogle = (d.domain === 'gmail.com' || d.domain === 'googlemail.com');
+  const googlePromise = isGoogle
+    ? Promise.allSettled([
+        fetch(`https://www.youtube.com/@${encodeURIComponent(handle)}`, {
+          headers: { 'User-Agent': getRandomUserAgent() },
+          signal: ctrl.signal,
+        }).then(async (res) => {
+          if (res.status === 200) {
+            const txt = await res.text();
+            if (txt.includes('itemprop="name"') || txt.includes('channelId') || txt.includes('canonical')) {
+              return { signal: 'Google Account / YouTube Handle Active' };
+            }
+          }
+          return null;
+        }),
+        fetch(`https://profiles.google.com/s2/photos/profile/${encodeURIComponent(candidateEmail)}?sz=80`, {
+          headers: { 'User-Agent': getRandomUserAgent() },
+          signal: ctrl.signal,
+        }).then((res) => {
+          if (res.status === 200) {
+            return {
+              signal: 'Google Profile Photo Verified',
+              avatar: `https://profiles.google.com/s2/photos/profile/${encodeURIComponent(candidateEmail)}?sz=80`,
+            };
+          }
+          return null;
+        }),
+      ])
+        .then((results) => {
+          for (const r of results) {
+            if (r.status === 'fulfilled' && r.value) return r.value;
+          }
+          return null;
+        })
+        .catch(() => null)
+    : Promise.resolve(null);
+
+  // G. Microsoft / Outlook / Hotmail Account Probe
+  const isMicrosoft = (d.domain === 'outlook.com' || d.domain === 'hotmail.com' || d.domain === 'live.com' || d.domain === 'msn.com');
+  const outlookPromise = isMicrosoft
+    ? fetch(`https://odc.officeapps.live.com/live/account/getavatar?email=${encodeURIComponent(candidateEmail)}`, {
+        headers: { 'User-Agent': getRandomUserAgent() },
+        signal: ctrl.signal,
+      })
+        .then((res) => {
+          if (res.status === 200) {
+            return {
+              signal: 'Microsoft / Outlook Registered Account',
+              avatar: `https://odc.officeapps.live.com/live/account/getavatar?email=${encodeURIComponent(candidateEmail)}`,
+            };
+          }
+          return null;
+        })
+        .catch(() => null)
+    : Promise.resolve(null);
+
+  // H. Kakao Daum / Tistory
+  const isDaum = (d.domain === 'daum.net' || d.domain === 'hanmail.net');
+  const daumPromise = isDaum
+    ? fetch(`https://${encodeURIComponent(handle)}.tistory.com`, {
+        headers: { 'User-Agent': getRandomUserAgent() },
+        signal: ctrl.signal,
+      })
+        .then(async (res) => {
+          if (res.status === 200) {
+            return { signal: 'Kakao Daum / Tistory Registered User' };
+          }
+          return null;
+        })
+        .catch(() => null)
+    : Promise.resolve(null);
+
+  // I. GitHub Developer Check
+  const githubPromise = (d.domain === 'github.com' || isExactTarget)
+    ? fetch(`https://api.github.com/users/${encodeURIComponent(handle)}`, {
+        headers: {
+          'User-Agent': getRandomUserAgent(),
+          Accept: 'application/vnd.github.v3+json',
+        },
+        signal: ctrl.signal,
+      })
+        .then(async (res) => {
+          if (res.status === 200) {
+            const data = await res.json().catch(() => null);
+            if (data?.login) {
+              return {
+                signal: 'GitHub Developer Profile Registered',
+                avatar: data.avatar_url as string | undefined,
+              };
+            }
+          }
+          return null;
+        })
+        .catch(() => null)
+    : Promise.resolve(null);
+
   const [
     naverRes,
     brunchRes,
     openPgpRes,
     profileRes,
     avatarRes,
+    googleRes,
+    outlookRes,
+    daumRes,
+    githubRes,
   ] = await Promise.all([
     naverPromise,
     brunchPromise,
     openPgpPromise,
     gravatarProfilePromise,
     gravatarAvatarPromise,
+    googlePromise,
+    outlookPromise,
+    daumPromise,
+    githubPromise,
   ]);
   clearTimeout(probeTimeout);
 
@@ -418,6 +1213,10 @@ async function probeEmailDomainIdentity(
     openPgpRes,
     profileRes,
     avatarRes,
+    googleRes,
+    outlookRes,
+    daumRes,
+    githubRes,
   ];
 
   for (const r of candidateResults) {
@@ -570,20 +1369,27 @@ app.get('/api/sites', (req: Request, res: Response) => {
   });
 });
 
-// Real-time SSE Search Endpoint
+// Real-time SSE Search Endpoint (Unified Omnisearch Engine)
 app.get('/api/search/stream', async (req: Request, res: Response) => {
-  const query = ((req.query.query as string) || '').trim();
-  const searchType = req.query.type === 'email' ? 'email' : 'username';
+  const rawQuery = ((req.query.query as string) || '').trim();
+  const reqType = (req.query.type as string) || 'unified';
   const category = (req.query.category as string) || 'all';
   const noNsfw = req.query.no_nsfw === 'true';
-  const pivotUsername = req.query.pivot === 'true';
-  const octopusMode = req.query.octopus === 'true' || searchType === 'email';
-  const maxConcurrency = Math.min(Math.max(parseInt(req.query.concurrency as string) || 20, 5), 40);
-  const siteLimit = parseInt(req.query.limit as string) || 0;
+  const pivotUsername = req.query.pivot !== 'false';
+  const isEmailQuery = rawQuery.includes('@');
+  const normalizedEmail = isEmailQuery ? rawQuery.toLowerCase() : rawQuery;
+  const cleanHandle = isEmailQuery ? normalizedEmail.split('@')[0] : rawQuery;
+  const octopusMode = req.query.octopus !== 'false';
+  const maxConcurrency = Math.min(Math.max(parseInt(req.query.concurrency as string) || 25, 5), 40);
+  const siteLimit = parseInt((req.query.limit || req.query.siteLimit) as string) || 0;
 
-  if (!query) {
+  if (!rawQuery) {
     return res.status(400).json({ error: 'Query parameter is required' });
   }
+
+  // Determine active search mode: 'unified' (default), 'email', or 'username'
+  const searchType: 'unified' | 'email' | 'username' =
+    reqType === 'email' ? 'email' : (reqType === 'username' ? 'username' : 'unified');
 
   // Setup SSE headers
   res.setHeader('Content-Type', 'text/event-stream');
@@ -626,44 +1432,114 @@ app.get('/api/search/stream', async (req: Request, res: Response) => {
     return true;
   };
 
-  if (searchType === 'email') {
-    // 1. Direct Email Sites
+  if (searchType === 'unified') {
+    if (isEmailQuery) {
+      // 1. Direct Email Sites probed with normalizedEmail
+      const filteredEmailSites = emailSites.filter(filterSite);
+      const emailTargets = filteredEmailSites.map(site => ({
+        site,
+        query: normalizedEmail,
+        detectionType: 'email' as const,
+      }));
+
+      // 2. All Username & Gaming Platforms probed with cleanHandle
+      const filteredUsernameSites = usernameSites.filter(filterSite);
+      const usernameTargets = filteredUsernameSites.map(site => ({
+        site,
+        query: cleanHandle,
+        detectionType: 'username_pivot' as const,
+      }));
+
+      targets = [...emailTargets, ...usernameTargets];
+    } else {
+      // Input is username/gaming ID - probe across all username & gaming platforms
+      const filteredUsernameSites = usernameSites.filter(filterSite);
+      targets = filteredUsernameSites.map(site => ({
+        site,
+        query: cleanHandle,
+        detectionType: 'username_pivot' as const,
+      }));
+    }
+  } else if (searchType === 'email') {
+    // Explicit Email only
     const filteredEmailSites = emailSites.filter(filterSite);
     targets = filteredEmailSites.map(site => ({
       site,
-      query,
+      query: normalizedEmail,
       detectionType: 'email' as const,
     }));
 
-    // 2. If Smart Pivot requested, also search username part across 700+ username sites
-    if (pivotUsername && query.includes('@')) {
-      const usernamePrefix = query.split('@')[0];
+    if (pivotUsername && isEmailQuery) {
       const filteredUsernameSites = usernameSites.filter(filterSite);
       const pivotTargets = filteredUsernameSites.map(site => ({
         site,
-        query: usernamePrefix,
+        query: cleanHandle,
         detectionType: 'username_pivot' as const,
       }));
       targets = [...targets, ...pivotTargets];
     }
   } else {
-    // Username search
+    // Explicit username only
     const filteredUsernameSites = usernameSites.filter(filterSite);
     targets = filteredUsernameSites.map(site => ({
       site,
-      query,
+      query: cleanHandle,
       detectionType: 'username_pivot' as const,
     }));
   }
 
-  // Prioritize high-value Korean & major global platforms so they probe first and aren't cut off by site limits
-  const priorityKeywords = ['entry', '엔트리', 'velog', 'naver', 'tistory', 'codeup', 'geeknews', 'soop', 'op.gg', 'chzzk', 'kakao', 'github'];
+  // Deduplicate targets so identical platform domains are only probed once
+  const seenTargets = new Set<string>();
+  targets = targets.filter(t => {
+    let key = t.site.name.toLowerCase();
+    if (key.includes('minecraft')) key = 'minecraft';
+    if (key.includes('roblox')) key = 'roblox';
+    if (key.includes('op.gg') || key === 'opgg') key = 'opgg';
+    if (key.includes('fow')) key = 'fow';
+    if (key.includes('steam')) key = 'steam';
+    if (seenTargets.has(key)) return false;
+    seenTargets.add(key);
+    return true;
+  });
+
+  // Prioritize high-value Korean & major global gaming/social platforms so they probe first and aren't cut off by site limits
+  const priorityKeywords = [
+    'fow',
+    'op.gg',
+    'pubg',
+    'minecraft',
+    'roblox',
+    'brawl',
+    'supercell',
+    'clash',
+    'steam',
+    'entry',
+    '엔트리',
+    'velog',
+    'naver',
+    'tistory',
+    'codeup',
+    'geeknews',
+    'soop',
+    'chzzk',
+    'kakao',
+    'github',
+  ];
+
+  const getPriorityRank = (name: string): number => {
+    const lower = name.toLowerCase();
+    for (let i = 0; i < priorityKeywords.length; i++) {
+      if (lower.includes(priorityKeywords[i])) {
+        return priorityKeywords.length - i;
+      }
+    }
+    return 0;
+  };
+
   targets.sort((a, b) => {
-    const aName = a.site.name.toLowerCase();
-    const bName = b.site.name.toLowerCase();
-    const aPriority = priorityKeywords.some(k => aName.includes(k)) ? 1 : 0;
-    const bPriority = priorityKeywords.some(k => bName.includes(k)) ? 1 : 0;
-    return bPriority - aPriority;
+    const aRank = getPriorityRank(a.site.name);
+    const bRank = getPriorityRank(b.site.name);
+    return bRank - aRank;
   });
 
   if (siteLimit > 0 && targets.length > siteLimit) {
@@ -672,10 +1548,10 @@ app.get('/api/search/stream', async (req: Request, res: Response) => {
 
   sendEvent({
     type: 'init',
-    query,
+    query: rawQuery,
     searchType,
     totalSites: targets.length,
-    pivotEnabled: pivotUsername && searchType === 'email',
+    pivotEnabled: isEmailQuery,
     octopusEnabled: octopusMode,
   });
 
@@ -698,8 +1574,8 @@ app.get('/api/search/stream', async (req: Request, res: Response) => {
       const found = await probeEntryCustom(cleanTarget, isEmail);
       if (found) {
         const usernameOnly = cleanTarget.includes('@') ? cleanTarget.split('@')[0] : cleanTarget;
-        const profileUrl = site.profile_url
-          ? site.profile_url.replace(/\{account\}/g, encodeURIComponent(usernameOnly))
+        const profileUrl = isEmail
+          ? `https://playentry.org/search/user?query=${encodeURIComponent(cleanTarget)}`
           : `https://playentry.org/profile/${encodeURIComponent(usernameOnly)}`;
         return {
           name: site.name,
@@ -710,7 +1586,9 @@ app.get('/api/search/stream', async (req: Request, res: Response) => {
             {
               name: 'platform',
               type: 'String',
-              value: 'Playentry (엔트리 공식 계정 인증)',
+              value: isEmail
+                ? 'Playentry (이메일로 등록된 엔트리 계정 인증)'
+                : 'Playentry (엔트리 공식 프로필 계정 인증)',
             },
           ],
           responseTimeMs: Date.now() - tStart,
@@ -719,6 +1597,233 @@ app.get('/api/search/stream', async (req: Request, res: Response) => {
         };
       }
       return null;
+    }
+
+    // Custom check for GitHub (깃허브 공식 API)
+    if (site.name.toLowerCase() === 'github' || site.name.toLowerCase().includes('github')) {
+      const cleanTarget = activeQuery.includes('@') ? activeQuery.split('@')[0] : activeQuery.trim();
+      const tStart = Date.now();
+      const gh = await probeGitHubCustom(cleanTarget);
+      if (gh && gh.exists) {
+        return {
+          name: 'GitHub (깃허브)',
+          url: `https://github.com/${encodeURIComponent(gh.login || cleanTarget)}`,
+          category: 'coding',
+          status: 'FOUND',
+          metadata: [
+            { name: 'username', type: 'String', value: gh.login || cleanTarget },
+            ...(gh.name ? [{ name: 'fullName', type: 'String' as const, value: gh.name }] : []),
+            ...(gh.publicRepos !== undefined ? [{ name: 'publicRepos', type: 'String' as const, value: String(gh.publicRepos) }] : []),
+            ...(gh.avatarUrl ? [{ name: 'avatar', type: 'Image' as const, value: gh.avatarUrl }] : []),
+          ],
+          responseTimeMs: Date.now() - tStart,
+          detectionType,
+          pivotEmail,
+        };
+      }
+      return null;
+    }
+
+    // Custom check for GitLab (깃랩 공식 API)
+    if (site.name.toLowerCase() === 'gitlab' || site.name.toLowerCase().includes('gitlab')) {
+      const cleanTarget = activeQuery.includes('@') ? activeQuery.split('@')[0] : activeQuery.trim();
+      const tStart = Date.now();
+      const gl = await probeGitLabCustom(cleanTarget);
+      if (gl && gl.exists) {
+        return {
+          name: 'GitLab (깃랩)',
+          url: gl.webUrl || `https://gitlab.com/${encodeURIComponent(cleanTarget)}`,
+          category: 'coding',
+          status: 'FOUND',
+          metadata: [
+            { name: 'username', type: 'String', value: cleanTarget },
+            ...(gl.name ? [{ name: 'name', type: 'String' as const, value: gl.name }] : []),
+            ...(gl.avatarUrl ? [{ name: 'avatar', type: 'Image' as const, value: gl.avatarUrl }] : []),
+          ],
+          responseTimeMs: Date.now() - tStart,
+          detectionType,
+          pivotEmail,
+        };
+      }
+      return null;
+    }
+
+    // Custom check for Roblox (로블록스 공식 User API)
+    if (site.name.toLowerCase() === 'roblox') {
+      const cleanTarget = activeQuery.trim();
+      const tStart = Date.now();
+      const rbx = await probeRoblox(cleanTarget);
+      if (rbx && rbx.exists) {
+        return {
+          name: 'Roblox (로블록스)',
+          url: rbx.id
+            ? `https://www.roblox.com/users/${rbx.id}/profile`
+            : `https://www.roblox.com/search/users?keyword=${encodeURIComponent(cleanTarget)}`,
+          category: 'gaming',
+          status: 'FOUND',
+          metadata: [
+            {
+              name: 'displayName',
+              type: 'String',
+              value: rbx.displayName || cleanTarget,
+            },
+            ...(rbx.id
+              ? [
+                  {
+                    name: 'userId',
+                    type: 'String' as const,
+                    value: String(rbx.id),
+                  },
+                ]
+              : []),
+          ],
+          responseTimeMs: Date.now() - tStart,
+          detectionType,
+          pivotEmail,
+        };
+      }
+      return null;
+    }
+
+    // Custom check for League of Legends (OP.GG)
+    if (site.name.toLowerCase().includes('op.gg') || site.name.toLowerCase() === 'opgg') {
+      const cleanTarget = activeQuery.trim();
+      const tStart = Date.now();
+      const lol = await probeLolOpgg(cleanTarget);
+      if (lol && lol.exists) {
+        return {
+          name: 'OP.GG (리그 오브 레전드)',
+          url: lol.profileUrl,
+          category: 'gaming',
+          status: 'FOUND',
+          metadata: [
+            {
+              name: 'summoner',
+              type: 'String',
+              value: lol.summoner || cleanTarget,
+            },
+            {
+              name: 'platform',
+              type: 'String',
+              value: 'Riot Games / League of Legends',
+            },
+          ],
+          responseTimeMs: Date.now() - tStart,
+          detectionType,
+          pivotEmail,
+        };
+      }
+      return null;
+    }
+
+    // Custom check for FOW.KR / FOW.LOL (포우 LOL 전적)
+    if (site.name.toLowerCase().includes('fow')) {
+      const cleanTarget = activeQuery.trim();
+      const tStart = Date.now();
+      const fow = await probeFowLol(cleanTarget);
+      if (fow && fow.exists) {
+        return {
+          name: 'FOW.KR (포우 LOL 전적)',
+          url: fow.profileUrl,
+          category: 'gaming',
+          status: 'FOUND',
+          metadata: [
+            {
+              name: 'summoner',
+              type: 'String',
+              value: fow.summoner || cleanTarget,
+            },
+            ...(fow.tier
+              ? [
+                  {
+                    name: 'tier',
+                    type: 'String' as const,
+                    value: fow.tier,
+                  },
+                ]
+              : []),
+          ],
+          responseTimeMs: Date.now() - tStart,
+          detectionType,
+          pivotEmail,
+        };
+      }
+      return null;
+    }
+
+    // Custom check for Minecraft (마인크래프트 공식 Mojang API)
+    if (
+      site.name.toLowerCase().includes('minecraft') ||
+      site.name.toLowerCase() === 'mcuuid (minecraft)'
+    ) {
+      const cleanTarget = activeQuery.trim();
+      const tStart = Date.now();
+      const mc = await probeMinecraft(cleanTarget);
+      if (mc && mc.exists) {
+        return {
+          name: 'Minecraft (마인크래프트 공식)',
+          url: `https://namemc.com/profile/${encodeURIComponent(mc.name || cleanTarget)}`,
+          category: 'gaming',
+          status: 'FOUND',
+          metadata: [
+            {
+              name: 'playerName',
+              type: 'String',
+              value: mc.name || cleanTarget,
+            },
+            ...(mc.id
+              ? [
+                  {
+                    name: 'uuid',
+                    type: 'String' as const,
+                    value: mc.id,
+                  },
+                ]
+              : []),
+          ],
+          responseTimeMs: Date.now() - tStart,
+          detectionType,
+          pivotEmail,
+        };
+      }
+      return null;
+    }
+
+    // Custom check for Steam Community (스팀)
+    if (site.name.toLowerCase() === 'steam' || site.name.toLowerCase() === 'steam community') {
+      const cleanTarget = activeQuery.trim();
+      const tStart = Date.now();
+      const steamResult = await probeSteam(cleanTarget);
+      if (steamResult && steamResult.exists) {
+        return {
+          name: 'Steam Community (스팀)',
+          url: steamResult.profileUrl,
+          category: 'gaming',
+          status: 'FOUND',
+          metadata: [
+            {
+              name: 'displayName',
+              type: 'String',
+              value: steamResult.displayName || cleanTarget,
+            },
+          ],
+          responseTimeMs: Date.now() - tStart,
+          detectionType,
+          pivotEmail,
+        };
+      }
+      return null;
+    }
+
+    // Supercell Tag Normalization (브롤스타즈, 클래시 오브 클랜 등 - '#' 접두사 처리)
+    if (
+      site.name.toLowerCase().includes('brawl') ||
+      site.name.toLowerCase().includes('clash') ||
+      site.name.toLowerCase().includes('supercell')
+    ) {
+      const cleanTag = activeQuery.trim().replace(/^#/, '');
+      formattedAccount = cleanTag;
+      targetUrl = targetUrl.replace(/\{account\}/g, encodeURIComponent(cleanTag));
     }
 
     // Apply input transformations
@@ -731,11 +1836,13 @@ app.get('/api/search/stream', async (req: Request, res: Response) => {
       targetUrl = targetUrl.replace(/\{account\}/g, hash);
       formattedAccount = hash;
     } else if (site.input_operation === 'email-username') {
-      const handle = activeQuery.includes('@') ? activeQuery.split('@')[0] : activeQuery;
+      const handle = activeQuery.includes('@') ? activeQuery.split('@')[0].toLowerCase() : activeQuery;
       targetUrl = targetUrl.replace(/\{account\}/g, encodeURIComponent(handle));
       formattedAccount = handle;
     } else if (site.input_operation === 'raw-email') {
-      targetUrl = targetUrl.replace(/\{account\}/g, encodeURIComponent(activeQuery.trim()));
+      const emailLower = activeQuery.trim().toLowerCase();
+      targetUrl = targetUrl.replace(/\{account\}/g, encodeURIComponent(emailLower));
+      formattedAccount = emailLower;
     } else {
       targetUrl = targetUrl.replace(/\{account\}/g, encodeURIComponent(activeQuery.trim()));
     }
@@ -798,19 +1905,30 @@ app.get('/api/search/stream', async (req: Request, res: Response) => {
 
       const lowerText = textContent.toLowerCase();
 
-      // Filter out WAF / Cloudflare Challenge / Bot verification pages
+      // Filter out WAF / Cloudflare Challenge / Bot verification pages (Prevent False Positives)
       if (
         lowerText.includes('attention required! | cloudflare') ||
         lowerText.includes('just a moment...') ||
         lowerText.includes('cf-browser-verification') ||
         lowerText.includes('cloudflare ray id:') ||
         lowerText.includes('ray id:') ||
+        lowerText.includes('challenges.cloudflare.com') ||
+        lowerText.includes('cf-turnstile') ||
         lowerText.includes('checking your browser before accessing') ||
         lowerText.includes('please verify you are a human') ||
+        lowerText.includes('verify you are human') ||
+        lowerText.includes('verifying you are human') ||
+        lowerText.includes('pardon our interruption') ||
         lowerText.includes('enable javascript and cookies to continue') ||
         lowerText.includes('protected by datadome') ||
+        lowerText.includes('captcha-delivery.com') ||
+        lowerText.includes('perimeterx') ||
+        lowerText.includes('px-captcha') ||
+        lowerText.includes('human security') ||
+        lowerText.includes('incapsula_resource') ||
         lowerText.includes('access denied') ||
-        lowerText.includes('security check to continue')
+        lowerText.includes('security check to continue') ||
+        lowerText.includes('unusual traffic from your computer network')
       ) {
         return null;
       }
@@ -882,7 +2000,7 @@ app.get('/api/search/stream', async (req: Request, res: Response) => {
 
         const profileUrl = site.profile_url
           ? site.profile_url.replace(/\{account\}/g, activeQuery)
-          : targetUrl;
+          : (site.uri_pretty ? site.uri_pretty.replace(/\{account\}/g, activeQuery) : targetUrl);
 
         return {
           name: site.name,
@@ -937,11 +2055,11 @@ app.get('/api/search/stream', async (req: Request, res: Response) => {
   const octopusTask = async () => {
     if (!octopusMode || isClosed) return;
 
-    const handle = query.includes('@') ? query.split('@')[0].trim() : query.trim();
+    const handle = isEmailQuery ? normalizedEmail.split('@')[0].trim() : rawQuery.trim();
     if (!handle || handle.length < 2) return;
 
-    const targetEmail = query.includes('@') ? query.trim().toLowerCase() : undefined;
-    const targetDomain = query.includes('@') ? query.split('@')[1]?.trim().toLowerCase() : undefined;
+    const targetEmail = isEmailQuery ? normalizedEmail : undefined;
+    const targetDomain = isEmailQuery ? normalizedEmail.split('@')[1]?.trim() : undefined;
 
     // Prioritize target domain so user's exact email is processed and emitted immediately
     const orderedDomains = [...famousDomains].sort((a, b) => {
@@ -1087,7 +2205,15 @@ app.post('/api/ai/analyze', async (req: Request, res: Response) => {
 
     if (apiKey) {
       try {
-        const ai = new GoogleGenAI({ apiKey });
+        const ai = new GoogleGenAI({
+          apiKey,
+          httpOptions: {
+            headers: {
+              'User-Agent': 'aistudio-build',
+            },
+          },
+        });
+
         const prompt = `You are an elite OSINT behavioral profiling and digital identity analyst.
 Analyze the following digital footprint discovery results for target "${targetIdentifier}".
 
@@ -1120,77 +2246,45 @@ Provide an objective intelligence assessment with the following JSON schema:
   ]
 }`;
 
-        // Multi-tier resilient Gemini call: ultra-fast REST gemini-2.5-flash primary -> SDK fallback -> heuristic engine
-        const aiCall = (async () => {
-          // 1. Direct high-speed REST fetch with gemini-2.5-flash (fastest and most reliable in container network)
-          try {
-            const restCtrl = new AbortController();
-            const restTimeout = setTimeout(() => restCtrl.abort(), 9000);
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-            const restRes = await fetch(url, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              signal: restCtrl.signal,
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { responseMimeType: 'application/json' },
-              }),
-            });
-            clearTimeout(restTimeout);
-            if (restRes.ok) {
-              const data = (await restRes.json()) as any;
-              const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-              if (text) return text;
-            }
-          } catch {
-            // ignore and fallback
-          }
+        let resultText: string | undefined = undefined;
 
-          // 2. Direct high-speed REST fetch with gemini-3.1-flash-lite (verified active and fast fallback)
-          try {
-            const restCtrl = new AbortController();
-            const restTimeout = setTimeout(() => restCtrl.abort(), 9000);
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`;
-            const restRes = await fetch(url, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              signal: restCtrl.signal,
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { responseMimeType: 'application/json' },
-              }),
-            });
-            clearTimeout(restTimeout);
-            if (restRes.ok) {
-              const data = (await restRes.json()) as any;
-              const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-              if (text) return text;
-            }
-          } catch {
-            // ignore and fallback
+        // 1. Primary: Ultra high-speed gemini-3.1-flash-lite (fastest, lightweight, zero-thinking latency)
+        try {
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Primary AI timeout')), 12000)
+          );
+          const genPromise = ai.models.generateContent({
+            model: 'gemini-3.1-flash-lite',
+            contents: prompt,
+            config: {
+              responseMimeType: 'application/json',
+            },
+          });
+          const res = await Promise.race([genPromise, timeoutPromise]);
+          if (res?.text) {
+            resultText = res.text;
           }
-
-          // 3. SDK call fallback
+        } catch {
+          // 2. Fallback: gemini-2.5-flash
           try {
-            const res = await ai.models.generateContent({
+            const timeoutPromise2 = new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('Fallback AI timeout')), 12000)
+            );
+            const genPromise2 = ai.models.generateContent({
               model: 'gemini-2.5-flash',
               contents: prompt,
               config: {
                 responseMimeType: 'application/json',
               },
             });
-            if (res.text) return res.text;
+            const res2 = await Promise.race([genPromise2, timeoutPromise2]);
+            if (res2?.text) {
+              resultText = res2.text;
+            }
           } catch {
-            // ignore
+            // Proceed to heuristic engine
           }
-
-          throw new Error('All AI endpoints unavailable');
-        })();
-
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('AI generation timed out')), 20000)
-        );
-        const resultText = await Promise.race([aiCall, timeoutPromise]);
+        }
 
         if (resultText) {
           let cleaned = resultText.trim();
@@ -1198,10 +2292,10 @@ Provide an objective intelligence assessment with the following JSON schema:
             cleaned = cleaned.replace(/^```[a-z]*\s*/i, '').replace(/\s*```$/, '').trim();
           }
           const parsed = JSON.parse(cleaned) as AiProfileAnalysis;
-          return res.json({ success: true, profile: parsed });
+          return res.json({ success: true, profile: parsed, engine: 'gemini' });
         }
-      } catch (geminiError: any) {
-        console.warn('Gemini API call returned error or timed out, activating heuristic OSINT engine:', geminiError?.message || geminiError);
+      } catch {
+        // Proceed cleanly to heuristic OSINT engine
       }
     }
 
@@ -1246,22 +2340,40 @@ Provide an objective intelligence assessment with the following JSON schema:
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: false,
+        ws: false,
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*', (req: Request, res: Response) => {
+    app.get('*', (_req: Request, res: Response) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[SMARTLAB_EXPERIMENT] OSINT Server running on http://0.0.0.0:${PORT}`);
+  const server = app.listen(PORT, HOST, () => {
+    console.log(`[SMARTLAB_EXPERIMENT] OSINT Server running on http://${HOST}:${PORT}`);
     console.log(`[SMARTLAB_EXPERIMENT] Loaded ${usernameSites.length} username sites, ${emailSites.length} email sites, and ${FAMOUS_EMAIL_DOMAINS.length} famous email domains.`);
+  });
+
+  server.on('error', (err: any) => {
+    console.error('[SMARTLAB_EXPERIMENT] Server error:', err?.message || err);
   });
 }
 
-startServer();
+process.on('uncaughtException', (err) => {
+  console.error('[SMARTLAB_EXPERIMENT] Uncaught exception:', err?.message || err);
+});
+
+process.on('unhandledRejection', (reason: any) => {
+  console.error('[SMARTLAB_EXPERIMENT] Unhandled rejection:', reason?.message || reason);
+});
+
+startServer().catch((err) => {
+  console.error('[SMARTLAB_EXPERIMENT] Failed to start server:', err);
+});

@@ -6,7 +6,7 @@ import { AccountCard } from './AccountCard';
 interface ResultsListProps {
   accounts: FoundAccount[];
   query: string;
-  searchType: 'username' | 'email';
+  searchType: 'unified' | 'username' | 'email';
 }
 
 export const ResultsList: React.FC<ResultsListProps> = ({ accounts, query, searchType }) => {
